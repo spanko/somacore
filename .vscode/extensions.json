@@ -1,0 +1,14 @@
+{
+  "recommendations": [
+    "ms-dotnettools.csdevkit",
+    "ms-dotnettools.csharp",
+    "ms-azuretools.vscode-bicep",
+    "ms-azuretools.vscode-azurecontainerapps",
+    "ms-azuretools.vscode-docker",
+    "EditorConfig.EditorConfig",
+    "ckolkman.vscode-postgres",
+    "humao.rest-client",
+    "GitHub.vscode-pull-request-github",
+    "anthropic.claude-code"
+  ]
+}

@@ -1,0 +1,71 @@
+# .NET build outputs
+bin/
+obj/
+*.user
+*.suo
+
+# Build artifacts
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Bb]uild/
+[Ll]og/
+[Ll]ogs/
+
+# Test results
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+*.coverage
+*.coveragexml
+coverage*.json
+coverage*.xml
+
+# NuGet
+*.nupkg
+*.snupkg
+.nuget/
+**/packages/*
+!**/packages/build/
+*.nuget.props
+*.nuget.targets
+
+# User-secrets (local only; never commit values)
+secrets.json
+
+# EF Core
+*.dacpac
+
+# Rider / VS / VSCode
+.idea/
+.vs/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+
+# OS
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Environment / secrets
+appsettings.*.json
+!appsettings.json
+!appsettings.*.json.example
+.env
+.env.*
+!.env.example
+
+# Bicep
+*.bicep.cache
+
+# Container
+**/Dockerfile.dev
+
+# Misc
+*.log
+*.tmp
+*.bak
+*.swp
+*~
