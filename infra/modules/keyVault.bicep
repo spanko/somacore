@@ -1,6 +1,12 @@
 // Key Vault in RBAC mode. Two role assignments:
-//   - the somacoredev group gets Key Vault Secrets User (read at runtime, debug)
-//   - the user-assigned managed identity gets Key Vault Secrets User (Container App pulls secrets)
+//   - the somacoredev group gets Key Vault Secrets Officer (read + write so
+//     operators can seed secrets, rotate WHOOP/Web client secrets, etc.)
+//   - the user-assigned managed identity gets Key Vault Secrets Officer
+//     (the Container App reads secrets at runtime; the token-refresh sweeper
+//     writes new WHOOP refresh tokens back to the vault per ADR 0007)
+//
+// Phase-1 trade-off: both principals are over-privileged for pure read paths.
+// Acceptable at three internal users; revisit with custom RBAC for prod.
 //
 // Secrets are populated post-deploy via az keyvault secret set. Bicep does not
 // know any secret values.
@@ -46,25 +52,25 @@ resource vault 'Microsoft.KeyVault/vaults@2023-07-01' = {
   }
 }
 
-// Built-in role: Key Vault Secrets User
-// 4633458b-17de-408a-b874-0445c86b69e6
-var kvSecretsUserRoleId = '4633458b-17de-408a-b874-0445c86b69e6'
+// Built-in role: Key Vault Secrets Officer (read + write secrets)
+// b86a8fe4-44ce-4948-aee5-eccb2c155cd7
+var kvSecretsOfficerRoleId = 'b86a8fe4-44ce-4948-aee5-eccb2c155cd7'
 
 resource kvAccessForGroup 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(vault.id, somacoreDevGroupObjectId, kvSecretsUserRoleId)
+  name: guid(vault.id, somacoreDevGroupObjectId, kvSecretsOfficerRoleId)
   scope: vault
   properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', kvSecretsUserRoleId)
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', kvSecretsOfficerRoleId)
     principalId: somacoreDevGroupObjectId
     principalType: 'Group'
   }
 }
 
 resource kvAccessForUami 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(vault.id, uamiPrincipalId, kvSecretsUserRoleId)
+  name: guid(vault.id, uamiPrincipalId, kvSecretsOfficerRoleId)
   scope: vault
   properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', kvSecretsUserRoleId)
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', kvSecretsOfficerRoleId)
     principalId: uamiPrincipalId
     principalType: 'ServicePrincipal'
   }

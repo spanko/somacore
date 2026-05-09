@@ -85,7 +85,7 @@ Group access controls which humans can sign in. **Within the app, every WHOOP-da
 
 ### Things still to wire up
 
-- `Key Vault Secrets User` role for `somacoredev` on the dev Key Vault — added in the Bicep session, after the vault exists.
+- ~~`Key Vault Secrets User` for `somacoredev`~~ — landed in the Bicep session as `Key Vault Secrets Officer` (read + write) so operators can seed and rotate. Same role for the UAMI so the runtime can rotate WHOOP refresh tokens. Tightening with a custom RBAC role is a phase-2 concern.
 - Postgres Entra-authentication user/group mapping — set when the Postgres Flex Server is provisioned.
 - Move the `SomaCore Web` client secret from 1Password into Key Vault — Bicep session.
 - Conditional Access for `somacoredev` (MFA enforcement, device compliance) — deferred until external users exist.
@@ -101,7 +101,7 @@ After running `infra/main.bicep` against `somacore-dev-rg` in `westus3`:
 | Application Insights | `somacore-dev-ai` | workspace-based |
 | User-assigned managed identity | `somacore-dev-uami` | client ID `20ba6439-c9a7-4a6e-af68-76696ce2bdde`, principal ID `cc5fbc4e-5561-4205-bf15-9c39ccee3f49` |
 | Azure Container Registry | `somacoredevacr` | `somacoredevacr.azurecr.io`, Basic SKU, admin user disabled, UAMI has `AcrPull` |
-| Key Vault | `somacore-dev-kv` | `https://somacore-dev-kv.vault.azure.net/`, RBAC mode. `somacoredev` group + UAMI both have `Key Vault Secrets User`. |
+| Key Vault | `somacore-dev-kv` | `https://somacore-dev-kv.vault.azure.net/`, RBAC mode. `somacoredev` group + UAMI both have `Key Vault Secrets Officer` (read + write). |
 | Postgres Flex Server | `somacore-dev-pg` | `somacore-dev-pg.postgres.database.azure.com`, `Standard_B1ms` Burstable, 32 GB, password auth, `somacore` database, `AllowAllAzureServices` firewall rule |
 | Container Apps Environment | `somacore-dev-cae` | Consumption workload profile |
 | Container App | `somacore-api` | `https://somacore-api.greenriver-03b3b72d.westus3.azurecontainerapps.io` (currently serves the `aci-helloworld` placeholder image) |
