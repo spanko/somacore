@@ -58,3 +58,4 @@ What else did we look at, and why didn't we pick it? Brief.
 - [0007 — Azure Key Vault for OAuth tokens (not the database)](./0007-key-vault-for-oauth-tokens.md)
 - [0008 — Bicep for infrastructure as code](./0008-bicep-for-iac.md)
 - [0009 — Postgres-backed work queue for phase 1](./0009-postgres-backed-work-queue.md)
+- [0010 — Razor Pages for the /me surface](./0010-razor-pages-for-me.md)

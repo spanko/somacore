@@ -10,6 +10,16 @@
     },
     "postgresAdminUsername": {
       "value": "somacoreadmin"
+    },
+    "azureAdTenantId": {
+      "value": "41231c11-d3b4-48d4-81c5-dacf4245a6c1"
+    },
+    "azureAdDomain": {
+      "value": "tento100.com"
+    },
+    "azureAdWebClientId": {
+      "value": "3b053ca8-e91b-4c7e-86ac-bb1e8afff5a3"
     }
   }
 }
+

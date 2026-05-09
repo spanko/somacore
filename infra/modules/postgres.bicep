@@ -68,6 +68,19 @@ resource server 'Microsoft.DBforPostgreSQL/flexibleServers@2024-08-01' = {
   }
 }
 
+// Allow-list Postgres extensions our schema needs. azure.extensions is a server
+// parameter that controls which extensions CREATE EXTENSION can target. We need
+// pgcrypto today for the schema's gen_random_uuid() fallback (the actual UUID v7
+// generation happens in C# via Guid.CreateVersion7()).
+resource extensionsConfig 'Microsoft.DBforPostgreSQL/flexibleServers/configurations@2024-08-01' = {
+  parent: server
+  name: 'azure.extensions'
+  properties: {
+    value: 'PGCRYPTO'
+    source: 'user-override'
+  }
+}
+
 resource db 'Microsoft.DBforPostgreSQL/flexibleServers/databases@2024-08-01' = {
   parent: server
   name: databaseName

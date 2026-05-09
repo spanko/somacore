@@ -36,6 +36,26 @@ param postgresAdminUsername string = 'somacoreadmin'
 @secure()
 param postgresAdminPassword string
 
+// ----- Container App image + auth wiring -------------------------------------
+
+@description('API container image. Default placeholder; override once the SomaCore.Api image has been pushed to ACR.')
+param apiImage string = 'mcr.microsoft.com/azuredocs/aci-helloworld:latest'
+
+@description('Container App ingress target port. .NET 9 ASP.NET Core defaults to 8080; the placeholder image listens on 80.')
+param apiTargetPort int = 80
+
+@description('Bind KV-backed app secrets onto the Container App (postgres connection string, web/whoop client secrets). Flip true once those KV secrets are populated and the image consumes them.')
+param wireKeyVaultSecrets bool = false
+
+@description('Entra tenant ID (the tento100.com tenant).')
+param azureAdTenantId string = ''
+
+@description('Entra primary domain.')
+param azureAdDomain string = ''
+
+@description('Application (client) ID of the SomaCore Web app registration.')
+param azureAdWebClientId string = ''
+
 // ----- naming derived from the prefix ----------------------------------------
 
 var workspaceName  = '${namingPrefix}-law'
@@ -110,6 +130,22 @@ resource pgPasswordSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
   ]
 }
 
+// And a derived full Postgres connection string so the Container App can bind
+// it as a single secret. Composed from the Postgres FQDN, db name, admin user,
+// and admin password — all known to Bicep at deploy time.
+var pgConnectionString = 'Host=${postgres.outputs.fqdn};Port=5432;Database=${postgres.outputs.databaseName};Username=${postgresAdminUsername};Password=${postgresAdminPassword};SslMode=Require;Trust Server Certificate=true'
+
+resource pgConnectionStringSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+  name: '${vaultName}/postgres-connection-string'
+  properties: {
+    value: pgConnectionString
+    contentType: 'text/plain'
+  }
+  dependsOn: [
+    keyVault
+  ]
+}
+
 module containerApps 'modules/containerApps.bicep' = {
   name: 'containerapps-deploy'
   params: {
@@ -123,7 +159,17 @@ module containerApps 'modules/containerApps.bicep' = {
     uamiId: identity.outputs.id
     uamiClientId: identity.outputs.clientId
     acrLoginServer: registry.outputs.loginServer
+    apiImage: apiImage
+    targetPort: apiTargetPort
+    keyVaultUri: keyVault.outputs.uri
+    azureAdDomain: azureAdDomain
+    azureAdTenantId: azureAdTenantId
+    azureAdClientId: azureAdWebClientId
+    wireKeyVaultSecrets: wireKeyVaultSecrets
   }
+  dependsOn: [
+    pgConnectionStringSecret
+  ]
 }
 
 // ----- outputs ----------------------------------------------------------------

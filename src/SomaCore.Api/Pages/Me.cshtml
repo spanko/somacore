@@ -1,0 +1,33 @@
+@page "/me"
+@model SomaCore.Api.Pages.MeModel
+@{
+    ViewData["Title"] = "/me";
+}
+
+<h1>Welcome, @Model.DisplayName</h1>
+<p class="subtitle">Signed in as @Model.Email</p>
+
+<section class="card">
+    <h2>WHOOP</h2>
+    <p>Not connected yet.</p>
+    <a class="btn" href="/auth/whoop/start" aria-disabled="true" title="Wired up in Session 4">Connect WHOOP</a>
+</section>
+
+<section class="card">
+    <h2>Today's recovery</h2>
+    <p class="subtitle">Connect WHOOP to see your recovery score.</p>
+</section>
+
+<details>
+    <summary>Diagnostics</summary>
+    <dl>
+        <dt>Entra OID</dt>
+        <dd><code>@Model.EntraOid</code></dd>
+        <dt>SomaCore user ID</dt>
+        <dd><code>@Model.SomaCoreUserId</code></dd>
+        <dt>Last seen</dt>
+        <dd>@(Model.LastSeenAt?.ToString("u") ?? "—")</dd>
+    </dl>
+</details>
+
+<p class="signout"><a href="/MicrosoftIdentity/Account/SignOut">Sign out</a></p>

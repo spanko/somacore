@@ -1,0 +1,30 @@
+# Build output
+**/bin
+**/obj
+
+# IDE / OS
+**/.vs
+**/.vscode
+**/.idea
+**/*.user
+**/.DS_Store
+
+# Tests (runtime image doesn't need them)
+tests/
+
+# Local-only files
+**/secrets.json
+**/.env*
+**/appsettings.*.json
+!**/appsettings.json
+
+# Git + docs
+.git/
+.gitignore
+docs/
+**/*.md
+session-*-kickoff.md
+
+# Coverage / artifacts
+**/coverage*
+**/TestResults/

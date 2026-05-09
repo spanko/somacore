@@ -104,7 +104,7 @@ After running `infra/main.bicep` against `somacore-dev-rg` in `westus3`:
 | Key Vault | `somacore-dev-kv` | `https://somacore-dev-kv.vault.azure.net/`, RBAC mode. `somacoredev` group + UAMI both have `Key Vault Secrets Officer` (read + write). |
 | Postgres Flex Server | `somacore-dev-pg` | `somacore-dev-pg.postgres.database.azure.com`, `Standard_B1ms` Burstable, 32 GB, password auth, `somacore` database, `AllowAllAzureServices` firewall rule |
 | Container Apps Environment | `somacore-dev-cae` | Consumption workload profile |
-| Container App | `somacore-api` | `https://somacore-api.greenriver-03b3b72d.westus3.azurecontainerapps.io` (currently serves the `aci-helloworld` placeholder image) |
+| Container App | `somacore-api` | Auto-generated FQDN: `https://somacore-api.greenriver-03b3b72d.westus3.azurecontainerapps.io`. Custom hostname `app-dev.tento100.com` is the canonical user-facing URL once DNS is direct (see "Custom domain"). Listens on port 8080 (.NET 9 default in the runtime image). |
 | Container Apps Job | `somacore-poller` | placeholder image, manual trigger |
 
 ## Initial deploy
@@ -148,6 +148,32 @@ az deployment group create `
 
 Typical deploy time: 5–10 minutes (Postgres provisioning is the slow step).
 
+## Custom domain (`app-dev.tento100.com`)
+
+The Container App is fronted by `app-dev.tento100.com` so OIDC redirect URIs and the user-facing URL stay stable across redeploys.
+
+DNS records to maintain at the `tento100.com` zone (Cloudflare in our case):
+
+```
+app-dev.tento100.com         CNAME   somacore-api.greenriver-03b3b72d.westus3.azurecontainerapps.io
+asuid.app-dev.tento100.com   TXT     <customDomainVerificationId from `az containerapp show`>
+```
+
+**Important:** the CNAME must be DNS-only (gray-cloud at Cloudflare). Proxied (orange-cloud) routing breaks Container Apps' managed-certificate provisioning because the platform's HTTP-01 challenge can't reach the origin.
+
+To bind the hostname + cert (one-time after DNS resolves directly):
+
+```powershell
+$env = az containerapp env show -g somacore-dev-rg -n somacore-dev-cae --query id -o tsv
+az containerapp hostname add -g somacore-dev-rg -n somacore-api --hostname app-dev.tento100.com
+az containerapp hostname bind -g somacore-dev-rg -n somacore-api `
+    --hostname app-dev.tento100.com `
+    --environment $env `
+    --validation-method CNAME
+```
+
+Cert provisioning takes ~5–15 minutes. Once issued, `https://app-dev.tento100.com/me` is the canonical URL.
+
 ## Seeding non-Postgres secrets into Key Vault
 
 Run after the first deploy (Bicep does not handle these secrets — see ADR 0007). Pull values from the WHOOP developer dashboard and 1Password respectively.
@@ -165,20 +191,30 @@ To retrieve later: `az keyvault secret show --vault-name somacore-dev-kv --name 
 
 ## App deploy (after infra exists)
 
-```bash
-# Build container image and push to ACR
-az acr build \
-  --registry somacoredevacr \
-  --image somacore-api:$(git rev-parse --short HEAD) \
-  --file src/SomaCore.Api/Dockerfile \
-  .
+```powershell
+# Build container image and push to ACR (remote build; no local Docker needed).
+$tag = git rev-parse --short HEAD
+az acr build `
+    --registry somacoredevacr `
+    --image "somacore-api:$tag" `
+    --image "somacore-api:latest" `
+    --file src/SomaCore.Api/Dockerfile `
+    .
 
-# Update Container App with new image
-az containerapp update \
-  --name somacore-api \
-  --resource-group somacore-dev-rg \
-  --image somacoredevacr.azurecr.io/somacore-api:$(git rev-parse --short HEAD)
+# Roll the Container App over to the new image. Pass it through Bicep so
+# main.bicep stays the source of truth (apiImage parameter).
+$pgPass = az keyvault secret show --vault-name somacore-dev-kv --name postgres-admin-password --query value -o tsv
+az deployment group create `
+    --resource-group somacore-dev-rg `
+    --template-file infra/main.bicep `
+    --parameters infra/parameters.dev.json `
+    --parameters postgresAdminPassword=$pgPass `
+                 apiImage="somacoredevacr.azurecr.io/somacore-api:$tag" `
+                 apiTargetPort=8080 `
+                 wireKeyVaultSecrets=true
 ```
+
+`apiTargetPort=8080` matches the .NET 9 ASP.NET Core default in the runtime image; the placeholder helloworld image uses port 80, so the deploy parameter switches alongside the image swap. `wireKeyVaultSecrets=true` flips the Container App over to KV-backed secrets for the postgres connection string and Web/WHOOP client secrets.
 
 ## Database migrations
 

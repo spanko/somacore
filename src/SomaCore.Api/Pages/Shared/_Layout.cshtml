@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>@ViewData["Title"] · SomaCore</title>
+    <style>
+        :root {
+            color-scheme: light dark;
+            --bg: Canvas;
+            --fg: CanvasText;
+            --muted: GrayText;
+            --accent: #0b6cf2;
+            --card-bg: color-mix(in srgb, CanvasText 5%, Canvas);
+            --card-border: color-mix(in srgb, CanvasText 12%, Canvas);
+        }
+        body {
+            margin: 0;
+            font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--fg);
+            line-height: 1.45;
+        }
+        main {
+            max-width: 640px;
+            margin: 0 auto;
+            padding: 1.5rem 1rem 4rem;
+        }
+        h1 {
+            font-size: 1.6rem;
+            margin: 0 0 0.25rem;
+        }
+        .subtitle {
+            color: var(--muted);
+            margin: 0 0 1.5rem;
+        }
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 1rem 1.1rem;
+            margin: 0 0 1rem;
+        }
+        .card h2 {
+            font-size: 1.05rem;
+            margin: 0 0 0.5rem;
+        }
+        .btn {
+            display: inline-block;
+            padding: 0.5rem 0.9rem;
+            border-radius: 8px;
+            background: var(--accent);
+            color: white;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .btn:hover { filter: brightness(1.1); }
+        details { margin-top: 1.5rem; }
+        details summary {
+            cursor: pointer;
+            color: var(--muted);
+            font-size: 0.92rem;
+        }
+        dl { margin: 0.75rem 0 0; }
+        dt { color: var(--muted); font-size: 0.85rem; margin-top: 0.5rem; }
+        dd { margin: 0.1rem 0 0; }
+        code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.9em; }
+        .signout {
+            margin-top: 2rem;
+            font-size: 0.9rem;
+            color: var(--muted);
+        }
+        .signout a { color: inherit; }
+    </style>
+</head>
+<body>
+    <main>
+        @RenderBody()
+    </main>
+</body>
+</html>

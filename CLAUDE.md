@@ -59,6 +59,7 @@ If a request lands that drifts into out-of-scope territory, **stop and ask Adam*
 | Compute | Azure Container Apps (API) + Container Apps Jobs (poller) | [0002](./docs/decisions/0002-dotnet-9-minimal-api.md) |
 | IaC | Bicep | [0008](./docs/decisions/0008-bicep-for-iac.md) |
 | Work queue (phase 1) | Postgres-backed `webhook_events` table | [0009](./docs/decisions/0009-postgres-backed-work-queue.md) |
+| `/me` rendering | Razor Pages (not Blazor) | [0010](./docs/decisions/0010-razor-pages-for-me.md) |
 
 **Three-layer ingestion in one paragraph:** WHOOP webhooks pre-warm the data store in real time. A reconciliation poller catches missed webhooks (WHOOP's docs are explicit that webhook delivery is not guaranteed). An on-open synchronous pull is the last-resort fallback. All three paths feed the same `IngestRecovery` handler — same idempotency, same logs, same code path. See `docs/architecture.md` for the full breakdown.
 

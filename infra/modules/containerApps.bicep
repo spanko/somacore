@@ -30,11 +30,104 @@ param uamiId string
 @description('User-assigned managed identity client ID (for Azure SDK auth).')
 param uamiClientId string
 
-@description('ACR login server (e.g., somacoredevacr.azurecr.io). Used so the registries property is wired up even before we push a real image.')
+@description('ACR login server (e.g., somacoredevacr.azurecr.io).')
 param acrLoginServer string
 
-@description('Placeholder image to deploy until the real SomaCore.Api image exists.')
-param placeholderImage string = 'mcr.microsoft.com/azuredocs/aci-helloworld:latest'
+@description('Image reference for the API container. Default is the placeholder.')
+param apiImage string = 'mcr.microsoft.com/azuredocs/aci-helloworld:latest'
+
+@description('Image reference for the poller job. Default is the placeholder.')
+param pollerImage string = 'mcr.microsoft.com/azuredocs/aci-helloworld:latest'
+
+@description('Container ingress target port. .NET 9 ASP.NET Core listens on 8080 inside containers; the placeholder image listens on 80.')
+param targetPort int = 8080
+
+@description('Key Vault URI (https://<name>.vault.azure.net/), used to compose KV secret references.')
+param keyVaultUri string = ''
+
+@description('AzureAd config for OIDC sign-in. Leave defaults if KV bindings or env vars not yet ready.')
+param azureAdInstance string = environment().authentication.loginEndpoint
+param azureAdDomain string = ''
+param azureAdTenantId string = ''
+param azureAdClientId string = ''
+param azureAdCallbackPath string = '/signin-oidc'
+
+@description('Whether to bind KV-backed app secrets (postgres connection string, web/whoop client secrets) onto the Container App. Set true once KV secrets are populated and the image actually consumes them.')
+param wireKeyVaultSecrets bool = false
+
+// Secrets the Container App holds, sourced from Key Vault via the UAMI.
+var kvSecrets = wireKeyVaultSecrets ? [
+  {
+    name: 'postgres-connection-string'
+    keyVaultUrl: '${keyVaultUri}secrets/postgres-connection-string'
+    identity: uamiId
+  }
+  {
+    name: 'web-client-secret'
+    keyVaultUrl: '${keyVaultUri}secrets/web-client-secret'
+    identity: uamiId
+  }
+  {
+    name: 'whoop-client-id'
+    keyVaultUrl: '${keyVaultUri}secrets/whoop-client-id'
+    identity: uamiId
+  }
+  {
+    name: 'whoop-client-secret'
+    keyVaultUrl: '${keyVaultUri}secrets/whoop-client-secret'
+    identity: uamiId
+  }
+] : []
+
+var staticEnv = [
+  {
+    name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
+    value: appInsightsConnectionString
+  }
+  {
+    name: 'AZURE_CLIENT_ID'
+    value: uamiClientId
+  }
+  {
+    name: 'AzureAd__Instance'
+    value: azureAdInstance
+  }
+  {
+    name: 'AzureAd__Domain'
+    value: azureAdDomain
+  }
+  {
+    name: 'AzureAd__TenantId'
+    value: azureAdTenantId
+  }
+  {
+    name: 'AzureAd__ClientId'
+    value: azureAdClientId
+  }
+  {
+    name: 'AzureAd__CallbackPath'
+    value: azureAdCallbackPath
+  }
+]
+
+var kvEnv = wireKeyVaultSecrets ? [
+  {
+    name: 'ConnectionStrings__Postgres'
+    secretRef: 'postgres-connection-string'
+  }
+  {
+    name: 'AzureAd__ClientSecret'
+    secretRef: 'web-client-secret'
+  }
+  {
+    name: 'Whoop__ClientId'
+    secretRef: 'whoop-client-id'
+  }
+  {
+    name: 'Whoop__ClientSecret'
+    secretRef: 'whoop-client-secret'
+  }
+] : []
 
 resource env 'Microsoft.App/managedEnvironments@2024-03-01' = {
   name: environmentName
@@ -73,7 +166,7 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
       activeRevisionsMode: 'Single'
       ingress: {
         external: true
-        targetPort: 80
+        targetPort: targetPort
         allowInsecure: false
         transport: 'auto'
         traffic: [
@@ -89,26 +182,18 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
           identity: uamiId
         }
       ]
+      secrets: kvSecrets
     }
     template: {
       containers: [
         {
           name: 'api'
-          image: placeholderImage
+          image: apiImage
           resources: {
             cpu: json('0.25')
             memory: '0.5Gi'
           }
-          env: [
-            {
-              name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
-              value: appInsightsConnectionString
-            }
-            {
-              name: 'AZURE_CLIENT_ID'
-              value: uamiClientId
-            }
-          ]
+          env: concat(staticEnv, kvEnv)
         }
       ]
       scale: {
@@ -145,26 +230,18 @@ resource pollerJob 'Microsoft.App/jobs@2024-03-01' = {
           identity: uamiId
         }
       ]
+      secrets: kvSecrets
     }
     template: {
       containers: [
         {
           name: 'poller'
-          image: placeholderImage
+          image: pollerImage
           resources: {
             cpu: json('0.25')
             memory: '0.5Gi'
           }
-          env: [
-            {
-              name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
-              value: appInsightsConnectionString
-            }
-            {
-              name: 'AZURE_CLIENT_ID'
-              value: uamiClientId
-            }
-          ]
+          env: concat(staticEnv, kvEnv)
         }
       ]
     }
