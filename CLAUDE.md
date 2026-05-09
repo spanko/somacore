@@ -89,11 +89,12 @@ somacore/
 ├── tests/
 │   ├── SomaCore.UnitTests/      ← xUnit + FluentAssertions + NSubstitute
 │   └── SomaCore.IntegrationTests/  ← Testcontainers Postgres
-├── infra/                       ← Bicep (created in a later session)
+├── infra/                       ← Bicep templates for somacore-dev-rg
+│   ├── main.bicep
+│   ├── parameters.dev.json
+│   └── modules/                 ← per-resource Bicep modules
 └── .mcp/                        ← MCP server config for Claude Code
 ```
-
-The `infra/` directory does not exist yet — it will be created when the Bicep templates are written. **Do not pre-create it speculatively.**
 
 ### Working with the EF tooling
 

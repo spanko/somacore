@@ -90,32 +90,78 @@ Group access controls which humans can sign in. **Within the app, every WHOOP-da
 - Move the `SomaCore Web` client secret from 1Password into Key Vault — Bicep session.
 - Conditional Access for `somacoredev` (MFA enforcement, device compliance) — deferred until external users exist.
 
+## Deployed dev resources
+
+After running `infra/main.bicep` against `somacore-dev-rg` in `westus3`:
+
+| Resource | Name | Notes |
+|---|---|---|
+| Resource group | `somacore-dev-rg` | westus3 |
+| Log Analytics workspace | `somacore-dev-law` | 30-day retention |
+| Application Insights | `somacore-dev-ai` | workspace-based |
+| User-assigned managed identity | `somacore-dev-uami` | client ID `20ba6439-c9a7-4a6e-af68-76696ce2bdde`, principal ID `cc5fbc4e-5561-4205-bf15-9c39ccee3f49` |
+| Azure Container Registry | `somacoredevacr` | `somacoredevacr.azurecr.io`, Basic SKU, admin user disabled, UAMI has `AcrPull` |
+| Key Vault | `somacore-dev-kv` | `https://somacore-dev-kv.vault.azure.net/`, RBAC mode. `somacoredev` group + UAMI both have `Key Vault Secrets User`. |
+| Postgres Flex Server | `somacore-dev-pg` | `somacore-dev-pg.postgres.database.azure.com`, `Standard_B1ms` Burstable, 32 GB, password auth, `somacore` database, `AllowAllAzureServices` firewall rule |
+| Container Apps Environment | `somacore-dev-cae` | Consumption workload profile |
+| Container App | `somacore-api` | `https://somacore-api.greenriver-03b3b72d.westus3.azurecontainerapps.io` (currently serves the `aci-helloworld` placeholder image) |
+| Container Apps Job | `somacore-poller` | placeholder image, manual trigger |
+
 ## Initial deploy
 
 Prerequisites:
 - Azure CLI logged in to the right tenant (`az login --tenant <tento100-tenant-id>`)
 - Bicep CLI installed (`az bicep upgrade`)
 - Subscription set (`az account set --subscription <id>`)
+- Resource group created (one-time): `az group create --name somacore-dev-rg --location westus3`
+- The `somacoredev` security group exists (see [Access model](#access-model))
 
-Steps:
+Run from the repo root:
 
-```bash
-# Create resource group (one-time)
-az group create --name somacore-dev-rg --location westus3
+```powershell
+# Generate a strong Postgres admin password (passed at deploy time, never stored
+# in source control). Bicep relays it to both Postgres and the Key Vault secret
+# postgres-admin-password.
+$pgPass = -join (
+    1..32 | ForEach-Object {
+        $chars = (65..90) + (97..122) + (48..57) + @(33,35,37,42,43,45,46,61,63,95)
+        $b = [byte[]]::new(1)
+        [System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b)
+        [char]$chars[$b[0] % $chars.Count]
+    }
+)
 
-# Validate the Bicep
-cd infra
-az deployment group validate \
-  --resource-group somacore-dev-rg \
-  --template-file main.bicep \
-  --parameters @parameters.dev.json
+# What-if (dry run)
+az deployment group what-if `
+    --resource-group somacore-dev-rg `
+    --template-file infra/main.bicep `
+    --parameters infra/parameters.dev.json `
+    --parameters postgresAdminPassword=$pgPass
 
 # Deploy
-az deployment group create \
-  --resource-group somacore-dev-rg \
-  --template-file main.bicep \
-  --parameters @parameters.dev.json
+az deployment group create `
+    --resource-group somacore-dev-rg `
+    --template-file infra/main.bicep `
+    --parameters infra/parameters.dev.json `
+    --parameters postgresAdminPassword=$pgPass
 ```
+
+Typical deploy time: 5–10 minutes (Postgres provisioning is the slow step).
+
+## Seeding non-Postgres secrets into Key Vault
+
+Run after the first deploy (Bicep does not handle these secrets — see ADR 0007). Pull values from the WHOOP developer dashboard and 1Password respectively.
+
+```powershell
+# WHOOP dev app credentials (from developer-dashboard.whoop.com)
+az keyvault secret set --vault-name somacore-dev-kv --name whoop-client-id     --value "<whoop client id>"
+az keyvault secret set --vault-name somacore-dev-kv --name whoop-client-secret --value "<whoop client secret>"
+
+# SomaCore Web Entra app secret (currently in 1Password as "SomaCore Web - phase-1-dev secret")
+az keyvault secret set --vault-name somacore-dev-kv --name web-client-secret --value "<web client secret>"
+```
+
+To retrieve later: `az keyvault secret show --vault-name somacore-dev-kv --name <name> --query value -o tsv`. Membership in `somacoredev` provides read access; nobody else in the tenant can.
 
 ## App deploy (after infra exists)
 
@@ -146,7 +192,25 @@ dotnet ef database update \
   --connection "Host=...;Database=somacore;Username=...;Password=...;SslMode=Require"
 ```
 
-The connection string for the dev DB is in Key Vault (`somacore-dev-kv`, secret `postgres-admin-connection`). Pull it via `az keyvault secret show` — do not commit it.
+The Postgres admin password is in Key Vault (`somacore-dev-kv`, secret `postgres-admin-password`). Pull it via `az keyvault secret show` — do not commit it. The full connection string is:
+
+```
+Host=somacore-dev-pg.postgres.database.azure.com;Database=somacore;Username=somacoreadmin;Password=<from KV>;SslMode=Require;Trust Server Certificate=true
+```
+
+Migrating from a workstation requires a transient firewall rule for your IP (the deploy only allows Azure-internal traffic):
+
+```powershell
+$myIp = (Invoke-RestMethod https://api.ipify.org)
+az postgres flexible-server firewall-rule create `
+    --resource-group somacore-dev-rg --name somacore-dev-pg `
+    --rule-name "adam-dev-$(Get-Date -Format yyyyMMdd)" `
+    --start-ip-address $myIp --end-ip-address $myIp
+# ... run dotnet ef database update ...
+az postgres flexible-server firewall-rule delete `
+    --resource-group somacore-dev-rg --name somacore-dev-pg `
+    --rule-name "adam-dev-$(Get-Date -Format yyyyMMdd)" --yes
+```
 
 ## Secret rotation
 

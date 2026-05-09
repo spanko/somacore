@@ -1,0 +1,15 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "namingPrefix": {
+      "value": "somacore-dev"
+    },
+    "somacoreDevGroupObjectId": {
+      "value": "1ceda703-73b5-43ba-b19c-f3b73b76a8d4"
+    },
+    "postgresAdminUsername": {
+      "value": "somacoreadmin"
+    }
+  }
+}
