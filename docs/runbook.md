@@ -2,6 +2,40 @@
 
 Operational procedures for deploying, debugging, and maintaining SomaCore. This document is a stub during phase 1 and fills in as procedures are validated.
 
+## Local development setup
+
+First-time setup on a fresh clone:
+
+```powershell
+# 1. Restore the dotnet-ef local tool
+dotnet tool restore
+
+# 2. Start a local Postgres for dev queries (the integration test uses its own Testcontainers instance)
+docker run --name somacore-pg `
+  -e POSTGRES_USER=somacore `
+  -e POSTGRES_PASSWORD=devonly `
+  -e POSTGRES_DB=somacore `
+  -p 5432:5432 `
+  -d postgres:16
+
+# 3. Set the local API connection string via dotnet user-secrets
+dotnet user-secrets --project src/SomaCore.Api set `
+  "ConnectionStrings:Postgres" `
+  "Host=localhost;Port=5432;Database=somacore;Username=somacore;Password=devonly"
+
+# 4. Apply migrations to the local DB
+dotnet dotnet-ef database update -p src/SomaCore.Infrastructure -s src/SomaCore.Api
+
+# 5. Run the API
+dotnet run --project src/SomaCore.Api
+# Listens on http://localhost:5000 (HTTP) / https://localhost:5001 (HTTPS profile)
+
+# 6. Run the ingestion-job stub
+dotnet run --project src/SomaCore.IngestionJobs -- --job=token-refresh
+```
+
+If you don't set `ConnectionStrings:Postgres` via user-secrets, `SomaCore.Api` falls back to `Host=localhost;Port=5432;Database=somacore;Username=somacore;Password=devonly` so it still starts in a fresh local environment. Production deployments do not use this fallback (the env-var supplies the real value).
+
 ## Environments
 
 | Environment | Resource group | Subscription | Status |

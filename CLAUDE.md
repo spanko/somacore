@@ -70,23 +70,46 @@ If a request lands that drifts into out-of-scope territory, **stop and ask Adam*
 somacore/
 ├── CLAUDE.md                    ← you are here
 ├── README.md                    ← human-facing setup + run instructions
+├── Directory.Build.props        ← repo-wide MSBuild defaults (nullable, warnings-as-errors)
+├── Directory.Packages.props     ← Central Package Management (all NuGet versions pinned here)
+├── .config/dotnet-tools.json    ← dotnet-ef pinned as a local tool
 ├── docs/
 │   ├── architecture.md          ← full architecture picture
 │   ├── conventions.md           ← code style + patterns
 │   ├── phase-1-scope.md         ← committed scope, exit criteria
 │   ├── runbook.md               ← ops: deploy, rotate, debug
+│   ├── schema/                  ← phase-1 SQL schema spec + design notes
 │   └── decisions/               ← ADRs
-├── src/                         ← .NET solution (created in first build session)
-│   ├── SomaCore.Api/
-│   ├── SomaCore.Domain/
-│   ├── SomaCore.Infrastructure/
-│   └── SomaCore.IngestionJobs/
-├── tests/                       ← test projects
-├── infra/                       ← Bicep
+├── src/
+│   ├── SomaCore.sln
+│   ├── SomaCore.Domain/         ← entities + enum-like constants, no I/O deps
+│   ├── SomaCore.Infrastructure/ ← EF Core DbContext, configurations, migrations, Postgres provider
+│   ├── SomaCore.Api/            ← ASP.NET Core minimal API (entry point)
+│   └── SomaCore.IngestionJobs/  ← Container Apps Jobs entry point (stub in phase 1)
+├── tests/
+│   ├── SomaCore.UnitTests/      ← xUnit + FluentAssertions + NSubstitute
+│   └── SomaCore.IntegrationTests/  ← Testcontainers Postgres
+├── infra/                       ← Bicep (created in a later session)
 └── .mcp/                        ← MCP server config for Claude Code
 ```
 
-The `src/`, `tests/`, and `infra/` directories do not exist yet — they will be created in the first build session by `dotnet new` and `bicep init` workflows. **Do not pre-create them speculatively.**
+The `infra/` directory does not exist yet — it will be created when the Bicep templates are written. **Do not pre-create it speculatively.**
+
+### Working with the EF tooling
+
+`dotnet-ef` is pinned as a local tool. After `dotnet tool restore`, invoke as:
+
+```powershell
+dotnet dotnet-ef migrations add <Name> -p src/SomaCore.Infrastructure -s src/SomaCore.Api
+dotnet dotnet-ef migrations script -p src/SomaCore.Infrastructure -s src/SomaCore.Api
+dotnet dotnet-ef database update -p src/SomaCore.Infrastructure -s src/SomaCore.Api
+```
+
+A design-time `IDesignTimeDbContextFactory<SomaCoreDbContext>` lives in `SomaCore.Infrastructure` so EF tooling does not depend on user-secrets being populated. Override the design-time connection string via `SOMACORE_DESIGN_TIME_PG` if needed.
+
+### Naming conventions in the data layer
+
+EF Core entity types use PascalCase; columns, tables, indexes, and constraints in the database use snake_case via the `EFCore.NamingConventions` package. The schema spec at `docs/schema/0001_initial_schema.sql` is the source of truth — when EF generates SQL that diverges from it, fix the entity configuration first; only hand-edit the migration as a last resort with a comment explaining why. The current migration carries one such hand-edit (`idx_users_email` wraps `lower(email)` because EF Core has no fluent API for expression-based index columns).
 
 ---
 
