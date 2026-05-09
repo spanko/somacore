@@ -40,10 +40,55 @@ If you don't set `ConnectionStrings:Postgres` via user-secrets, `SomaCore.Api` f
 
 | Environment | Resource group | Subscription | Status |
 |---|---|---|---|
-| Dev | `somacore-dev-rg` | `tento100.com` tenant subscription | active |
+| Dev | `somacore-dev-rg` | `tento100.com` tenant subscription (`951c802d-200d-4380-9006-2999df2218d9`) | active |
 | Prod | `somacore-prod-rg` | same | not created yet (phase 2) |
 
-Region: `westus3` (subject to confirm).
+Region: `westus3`.
+
+## Access model
+
+Phase-1 access is gated by a single Entra ID security group. Engineers and product reviewers are members of that group; everyone else in the tenant gets nothing.
+
+### Tenant + group
+
+| | |
+|---|---|
+| Tenant ID | `41231c11-d3b4-48d4-81c5-dacf4245a6c1` (`tento100.com`) |
+| Access group (display name) | `somacoredev` |
+| Access group (object ID) | `1ceda703-73b5-43ba-b19c-f3b73b76a8d4` |
+| Group type | Security, mail-disabled, assigned membership, `isAssignableToRole = false` |
+| Phase-1 members | Adam Wengert, Tai Palacio, Greg Sheridan |
+
+Membership changes are made by an owner of the group via `az ad group member add/remove --group <id> --member-id <userId>` (or via the Entra portal).
+
+### Entra app registrations
+
+| App | Application (client) ID | Role |
+|---|---|---|
+| `SomaCore API` | `9c9a7c4c-5643-44ab-a915-c18f3b50edaa` | Resource. Identifier URI `api://9c9a7c4c-5643-44ab-a915-c18f3b50edaa`. Exposes the `api.access` delegated scope (scope ID `d67c9f15-b191-4735-b9ab-3d6530ce282c`). |
+| `SomaCore Web` | `3b053ca8-e91b-4c7e-86ac-bb1e8afff5a3` | Client. OIDC sign-in for the `/me` page. Pre-authorized on `SomaCore API` for `api.access`. Client secret stored in 1Password (`SomaCore Web - phase-1-dev secret`); will move to Key Vault in the Bicep session. |
+
+The Web app is configured with **`appRoleAssignmentRequired = True`**. Only members of `somacoredev` can sign in; everyone else gets `AADSTS50105` at the Entra sign-in screen.
+
+### Azure RBAC at the resource-group scope
+
+| Principal | Scope | Role |
+|---|---|---|
+| `somacoredev` | `somacore-dev-rg` | **Reader** (view resources, App Insights logs, Postgres metrics — cannot modify) |
+| Adam (subscription Owner) | subscription | **Owner** (Bicep deploys, role assignments, secret bootstrap) |
+
+Two-tier model on purpose: the group sees enough to debug, Adam keeps the keys to make changes.
+
+### Per-user data isolation (application layer)
+
+Group access controls which humans can sign in. **Within the app, every WHOOP-data query must filter by `users.entra_oid = <signed-in user's OID>`** (or equivalent indirection via `users.id`). The schema is built for this — `whoop_recoveries`, `external_connections`, and `webhook_events` all carry `user_id` foreign keys — but the query layer must enforce it. Tai signing in must not see Greg's recovery score even though both are in `somacoredev`. This is enforced in C#, not in Postgres or Entra.
+
+### Things still to wire up
+
+- `Key Vault Secrets User` role for `somacoredev` on the dev Key Vault — added in the Bicep session, after the vault exists.
+- Postgres Entra-authentication user/group mapping — set when the Postgres Flex Server is provisioned.
+- Move the `SomaCore Web` client secret from 1Password into Key Vault — Bicep session.
+- Conditional Access for `somacoredev` (MFA enforcement, device compliance) — deferred until external users exist.
 
 ## Initial deploy
 
