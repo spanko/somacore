@@ -106,9 +106,9 @@ public sealed class RecoveryIngestionHandler(
                 WhoopCycleId = payload.CycleId,
                 WhoopSleepId = payload.SleepId,
                 ScoreState = payload.ScoreState,
-                RecoveryScore = payload.Score?.RecoveryScore,
+                RecoveryScore = ToInt(payload.Score?.RecoveryScore),
                 HrvRmssdMilli = payload.Score?.HrvRmssdMilli,
-                RestingHeartRate = payload.Score?.RestingHeartRate,
+                RestingHeartRate = ToInt(payload.Score?.RestingHeartRate),
                 Spo2Percentage = payload.Score?.Spo2Percentage,
                 SkinTempCelsius = payload.Score?.SkinTempCelsius,
                 CycleStartAt = cycle.Value!.Start,
@@ -133,9 +133,11 @@ public sealed class RecoveryIngestionHandler(
                     payload.ScoreState));
         }
 
+        var newRecoveryScore = ToInt(payload.Score?.RecoveryScore);
+
         // Update path: WHOOP score may have transitioned from PENDING to SCORED.
         if (existing.ScoreState == payload.ScoreState
-         && existing.RecoveryScore == payload.Score?.RecoveryScore)
+         && existing.RecoveryScore == newRecoveryScore)
         {
             return Result<RecoveryIngestionOutcome>.Success(
                 new RecoveryIngestionOutcome(
@@ -146,9 +148,9 @@ public sealed class RecoveryIngestionHandler(
         }
 
         existing.ScoreState = payload.ScoreState;
-        existing.RecoveryScore = payload.Score?.RecoveryScore;
+        existing.RecoveryScore = newRecoveryScore;
         existing.HrvRmssdMilli = payload.Score?.HrvRmssdMilli;
-        existing.RestingHeartRate = payload.Score?.RestingHeartRate;
+        existing.RestingHeartRate = ToInt(payload.Score?.RestingHeartRate);
         existing.Spo2Percentage = payload.Score?.Spo2Percentage;
         existing.SkinTempCelsius = payload.Score?.SkinTempCelsius;
         existing.CycleStartAt = cycle.Value!.Start;
@@ -170,4 +172,12 @@ public sealed class RecoveryIngestionHandler(
                 existing.WhoopCycleId,
                 existing.ScoreState));
     }
+
+    /// <summary>
+    /// WHOOP serializes "integer-valued" fields like recovery_score and
+    /// resting_heart_rate as JSON numbers with a trailing .0. We accept them as
+    /// decimal on the wire and round to int for storage where the schema expects int.
+    /// </summary>
+    private static int? ToInt(decimal? value) =>
+        value is null ? null : (int)Math.Round(value.Value, MidpointRounding.AwayFromZero);
 }

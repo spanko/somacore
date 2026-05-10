@@ -25,11 +25,17 @@ public sealed record WhoopWebhookEnvelope(
     [property: JsonPropertyName("type")]     string EventType, // e.g. "recovery.updated"
     [property: JsonPropertyName("trace_id")] string TraceId);
 
-/// <summary>WHOOP v2 score sub-object on recovery.</summary>
+/// <summary>
+/// WHOOP v2 score sub-object on recovery. NB: WHOOP serializes <c>recovery_score</c>
+/// and <c>resting_heart_rate</c> as JSON numbers with a trailing <c>.0</c> even though
+/// the values are integer-valued. We type them as <c>decimal?</c> here so System.Text.Json
+/// accepts the wire format, and round to int at the persistence boundary in
+/// <see cref="SomaCore.Infrastructure.Recovery.RecoveryIngestionHandler"/>.
+/// </summary>
 public sealed record WhoopRecoveryScore(
-    [property: JsonPropertyName("recovery_score")]      int? RecoveryScore,
+    [property: JsonPropertyName("recovery_score")]      decimal? RecoveryScore,
     [property: JsonPropertyName("hrv_rmssd_milli")]     decimal? HrvRmssdMilli,
-    [property: JsonPropertyName("resting_heart_rate")]  int? RestingHeartRate,
+    [property: JsonPropertyName("resting_heart_rate")]  decimal? RestingHeartRate,
     [property: JsonPropertyName("spo2_percentage")]     decimal? Spo2Percentage,
     [property: JsonPropertyName("skin_temp_celsius")]   decimal? SkinTempCelsius,
     [property: JsonPropertyName("user_calibrating")]    bool? UserCalibrating);

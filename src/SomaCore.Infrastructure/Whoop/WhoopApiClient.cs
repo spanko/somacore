@@ -1,6 +1,6 @@
 using System.Net;
 using System.Net.Http.Headers;
-using System.Net.Http.Json;
+using System.Text.Json;
 
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -35,10 +35,7 @@ public sealed class WhoopApiClient(
             return await FailureFromAsync<WhoopRecoveryPayload?>(response, $"recovery-by-cycle/{cycleId}", cancellationToken);
         }
 
-        var body = await response.Content.ReadFromJsonAsync<WhoopRecoveryPayload>(cancellationToken);
-        return body is null
-            ? Result<WhoopRecoveryPayload?>.Failure("WHOOP returned an empty recovery body.")
-            : Result<WhoopRecoveryPayload?>.Success(body);
+        return await ParseAsync<WhoopRecoveryPayload?>(response, $"recovery-by-cycle/{cycleId}", cancellationToken);
     }
 
     public async Task<Result<WhoopRecoveryListResponse>> ListRecentRecoveriesAsync(
@@ -54,10 +51,7 @@ public sealed class WhoopApiClient(
             return await FailureFromAsync<WhoopRecoveryListResponse>(response, "recovery-list", cancellationToken);
         }
 
-        var body = await response.Content.ReadFromJsonAsync<WhoopRecoveryListResponse>(cancellationToken);
-        return body is null
-            ? Result<WhoopRecoveryListResponse>.Failure("WHOOP returned an empty list body.")
-            : Result<WhoopRecoveryListResponse>.Success(body);
+        return await ParseAsync<WhoopRecoveryListResponse>(response, "recovery-list", cancellationToken);
     }
 
     public async Task<Result<WhoopCyclePayload>> GetCycleAsync(
@@ -73,10 +67,38 @@ public sealed class WhoopApiClient(
             return await FailureFromAsync<WhoopCyclePayload>(response, $"cycle/{cycleId}", cancellationToken);
         }
 
-        var body = await response.Content.ReadFromJsonAsync<WhoopCyclePayload>(cancellationToken);
-        return body is null
-            ? Result<WhoopCyclePayload>.Failure("WHOOP returned an empty cycle body.")
-            : Result<WhoopCyclePayload>.Success(body);
+        return await ParseAsync<WhoopCyclePayload>(response, $"cycle/{cycleId}", cancellationToken);
+    }
+
+    /// <summary>
+    /// Read the response body as a string, then deserialize. On JsonException
+    /// we log the first ~500 chars of the actual body so future debugging
+    /// doesn't require capturing a live response.
+    /// </summary>
+    private async Task<Result<T>> ParseAsync<T>(
+        HttpResponseMessage response,
+        string operation,
+        CancellationToken cancellationToken)
+    {
+        var body = await response.Content.ReadAsStringAsync(cancellationToken);
+        try
+        {
+            var value = JsonSerializer.Deserialize<T>(body);
+            return value is null
+                ? Result<T>.Failure($"WHOOP {operation} returned an empty body.")
+                : Result<T>.Success(value);
+        }
+        catch (JsonException ex)
+        {
+            var truncated = body.Length > 500 ? body[..500] : body;
+            logger.LogError(ex,
+                "WHOOP {Operation} JSON parse failed at {Path}: {Body}",
+                operation,
+                ex.Path,
+                truncated);
+            return Result<T>.Failure(
+                $"WHOOP {operation} JSON parse failed at {ex.Path}: {ex.Message}");
+        }
     }
 
     private async Task<HttpResponseMessage> SendAsync(
