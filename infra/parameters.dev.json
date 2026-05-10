@@ -28,6 +28,9 @@
     },
     "whoopRedirectUri": {
       "value": "https://app-dev.tento100.com/auth/whoop/callback"
+    },
+    "adminUserOids": {
+      "value": "d9a4dcc0-50de-4c43-b46b-4d81233e3b1b"
     }
   }
 }

@@ -1,0 +1,87 @@
+@page "/admin/users"
+@model SomaCore.Api.Pages.Admin.UsersModel
+@{
+    ViewData["Title"] = "/admin/users";
+}
+
+<h1>Users</h1>
+<p class="subtitle">@Model.Rows.Count total · snapshot @Model.GeneratedAt.ToString("u")</p>
+
+@if (Model.Rows.Count == 0)
+{
+    <p class="subtitle">No users yet.</p>
+}
+else
+{
+    <div class="admin-table-wrap">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>User</th>
+                    <th>First sign-in</th>
+                    <th>Last seen</th>
+                    <th>WHOOP</th>
+                    <th>Latest recovery</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var u in Model.Rows)
+                {
+                    <tr>
+                        <td>
+                            <div>@(u.DisplayName ?? "(no name)")</div>
+                            <div class="subtitle"><code>@u.Email</code></div>
+                        </td>
+                        <td>@u.CreatedAt.ToString("u")</td>
+                        <td>@(u.LastSeenAt?.ToString("u") ?? "—")</td>
+                        <td>
+                            @if (u.ActiveWhoopConnectedAt.HasValue)
+                            {
+                                <span class="status-dot status-dot-ok" aria-hidden="true"></span>
+                                <text>connected</text>
+                                <div class="subtitle">since @u.ActiveWhoopConnectedAt.Value.ToString("u")</div>
+                                @if (u.LastRefreshAt.HasValue)
+                                {
+                                    <div class="subtitle">last refresh @u.LastRefreshAt.Value.ToString("u")</div>
+                                }
+                            }
+                            else
+                            {
+                                <span class="subtitle">not connected</span>
+                            }
+                        </td>
+                        <td>
+                            @if (u.LatestRecoveryCycleAt.HasValue)
+                            {
+                                <div>
+                                    @if (u.LatestRecoveryScore.HasValue)
+                                    {
+                                        <text>@u.LatestRecoveryScore </text>
+                                    }
+                                    <span class="badge @BadgeClass(u.LatestRecoveryState)">@u.LatestRecoveryState</span>
+                                </div>
+                                <div class="subtitle">cycle @u.LatestRecoveryCycleAt.Value.ToString("u")</div>
+                            }
+                            else
+                            {
+                                <span class="subtitle">none yet</span>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+<p class="signout"><a href="/me">← back to /me</a></p>
+
+@functions {
+    static string BadgeClass(string? state) => state switch
+    {
+        "SCORED"        => "badge-scored",
+        "PENDING_SCORE" => "badge-pending",
+        "UNSCORABLE"    => "badge-unscorable",
+        _               => "badge-unscorable",
+    };
+}

@@ -65,12 +65,35 @@ builder.Services.Configure<OpenIdConnectOptions>(
         options.SaveTokens = false; // /me reads claims, not tokens; nothing to persist
     });
 
+// Bind the admin allowlist (Entra OIDs) so the "Admin" policy can read it.
+builder.Services
+    .AddOptions<SomaCore.Api.Authentication.AdminOptions>()
+    .Bind(builder.Configuration.GetSection(SomaCore.Api.Authentication.AdminOptions.SectionName));
+
+// Snapshot the admin OID list at startup so the policy assertion is allocation-free.
+// Add or remove admins via env var + redeploy.
+var adminOids = builder.Configuration
+    .GetSection(SomaCore.Api.Authentication.AdminOptions.SectionName)
+    .Get<SomaCore.Api.Authentication.AdminOptions>()
+    ?.ParseUserOids() ?? Array.Empty<Guid>();
+
 // Default policy = "must be authenticated"; individual endpoints opt out via [AllowAnonymous].
 builder.Services.AddAuthorization(options =>
 {
     options.FallbackPolicy = new AuthorizationPolicyBuilder()
         .RequireAuthenticatedUser()
         .Build();
+
+    options.AddPolicy("Admin", policy =>
+    {
+        policy.RequireAuthenticatedUser();
+        policy.RequireAssertion(context =>
+        {
+            var oidStr = context.User.FindFirst(Microsoft.Identity.Web.ClaimConstants.ObjectId)?.Value
+                ?? context.User.FindFirst("oid")?.Value;
+            return Guid.TryParse(oidStr, out var entraOid) && adminOids.Contains(entraOid);
+        });
+    });
 });
 
 builder.Services

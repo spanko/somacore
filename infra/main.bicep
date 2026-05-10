@@ -65,6 +65,9 @@ param customHostnameCertificateId string = ''
 @description('WHOOP OAuth callback URI. Must be registered in the WHOOP developer dashboard. Typically https://<customHostname>/auth/whoop/callback.')
 param whoopRedirectUri string = ''
 
+@description('Comma-separated Entra Object IDs that get access to /admin/* surfaces.')
+param adminUserOids string = ''
+
 // ----- naming derived from the prefix ----------------------------------------
 
 var workspaceName  = '${namingPrefix}-law'
@@ -178,6 +181,7 @@ module containerApps 'modules/containerApps.bicep' = {
     customHostname: customHostname
     customHostnameCertificateId: customHostnameCertificateId
     whoopRedirectUri: whoopRedirectUri
+    adminUserOids: adminUserOids
   }
   dependsOn: [
     pgConnectionStringSecret

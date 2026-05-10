@@ -61,6 +61,9 @@ param azureAdCallbackPath string = '/signin-oidc'
 @description('WHOOP OAuth callback URI registered in the WHOOP developer dashboard.')
 param whoopRedirectUri string = ''
 
+@description('Comma-separated Entra Object IDs that get the "Admin" policy.')
+param adminUserOids string = ''
+
 @description('Whether to bind KV-backed app secrets (postgres connection string, web/whoop client secrets) onto the Container App. Set true once KV secrets are populated and the image actually consumes them.')
 param wireKeyVaultSecrets bool = false
 
@@ -124,6 +127,10 @@ var staticEnv = [
   {
     name: 'Whoop__RedirectUri'
     value: whoopRedirectUri
+  }
+  {
+    name: 'Admin__UserOids'
+    value: adminUserOids
   }
 ]
 

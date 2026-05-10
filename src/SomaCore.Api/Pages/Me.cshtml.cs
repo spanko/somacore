@@ -12,8 +12,11 @@ using SomaCore.Infrastructure.Persistence;
 namespace SomaCore.Api.Pages;
 
 [Authorize]
-public sealed class MeModel(SomaCoreDbContext dbContext) : PageModel
+public sealed class MeModel(
+    SomaCoreDbContext dbContext,
+    IAuthorizationService authorizationService) : PageModel
 {
+    public bool IsAdmin { get; private set; }
     public string DisplayName { get; private set; } = string.Empty;
     public string Email { get; private set; } = string.Empty;
     public Guid? EntraOid { get; private set; }
@@ -102,6 +105,9 @@ public sealed class MeModel(SomaCoreDbContext dbContext) : PageModel
             "cancelled" => "WHOOP authorization was cancelled.",
             _           => null,
         };
+
+        var adminCheck = await authorizationService.AuthorizeAsync(User, "Admin");
+        IsAdmin = adminCheck.Succeeded;
     }
 
     public sealed record RecoveryViewModel(

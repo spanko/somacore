@@ -112,4 +112,9 @@
     </dl>
 </details>
 
+@if (Model.IsAdmin)
+{
+    <p class="signout"><a href="/admin/users">Admin: users</a></p>
+}
+
 <p class="signout"><a href="/MicrosoftIdentity/Account/SignOut">Sign out</a></p>
