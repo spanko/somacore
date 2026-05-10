@@ -31,6 +31,7 @@ builder.Services.AddSomaCoreInfrastructure(connectionString);
 builder.Services.AddSomaCoreKeyVault(builder.Configuration);
 builder.Services.AddSomaCoreWhoop(builder.Configuration);
 builder.Services.AddSingleton<IWhoopStateProtector, WhoopStateProtector>();
+builder.Services.AddHostedService<SomaCore.Api.Whoop.WhoopWebhookDrainer>();
 
 // Container Apps ingress terminates TLS; the container sees plain HTTP. Honor
 // X-Forwarded-Proto/Host so OIDC redirect_uri composition uses https://app-dev...
@@ -101,6 +102,7 @@ app.MapGet("/admin/health", () => Results.Ok(new { status = "ok" }))
 
 app.MapRazorPages();
 app.MapWhoopAuthEndpoints();
+app.MapWhoopWebhookEndpoint();
 
 app.Run();
 

@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 using SomaCore.Infrastructure.Persistence;
 using SomaCore.Infrastructure.Persistence.Interceptors;
+using SomaCore.Infrastructure.Recovery;
 using SomaCore.Infrastructure.Secrets;
 using SomaCore.Infrastructure.Whoop;
 
@@ -59,6 +60,21 @@ public static class DependencyInjection
                 client.DefaultRequestHeaders.Accept.Add(
                     new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
             });
+
+        services
+            .AddHttpClient<IWhoopApiClient, WhoopApiClient>(client =>
+            {
+                client.Timeout = TimeSpan.FromSeconds(15);
+                client.DefaultRequestHeaders.Accept.Add(
+                    new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
+            });
+
+        services.AddSingleton<IWhoopWebhookSignatureValidator, WhoopWebhookSignatureValidator>();
+
+        // Token cache is a singleton so the in-memory entries survive across requests;
+        // it pulls a scoped DbContext via IServiceScopeFactory when it needs to write.
+        services.AddSingleton<IWhoopAccessTokenCache, WhoopAccessTokenCache>();
+        services.AddScoped<IRecoveryIngestionHandler, RecoveryIngestionHandler>();
 
         return services;
     }

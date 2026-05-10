@@ -14,3 +14,44 @@ public sealed record WhoopBasicProfile(
     [property: JsonPropertyName("email")]      string Email,
     [property: JsonPropertyName("first_name")] string? FirstName,
     [property: JsonPropertyName("last_name")]  string? LastName);
+
+/// <summary>
+/// Inbound webhook envelope per WHOOP v2 docs. We only consume the subset we need;
+/// the raw bytes are persisted in <c>webhook_events.raw_body</c> for replay.
+/// </summary>
+public sealed record WhoopWebhookEnvelope(
+    [property: JsonPropertyName("user_id")]  long UserId,
+    [property: JsonPropertyName("id")]       string Id,        // sleep UUID for v2 recovery events
+    [property: JsonPropertyName("type")]     string EventType, // e.g. "recovery.updated"
+    [property: JsonPropertyName("trace_id")] string TraceId);
+
+/// <summary>WHOOP v2 score sub-object on recovery.</summary>
+public sealed record WhoopRecoveryScore(
+    [property: JsonPropertyName("recovery_score")]      int? RecoveryScore,
+    [property: JsonPropertyName("hrv_rmssd_milli")]     decimal? HrvRmssdMilli,
+    [property: JsonPropertyName("resting_heart_rate")]  int? RestingHeartRate,
+    [property: JsonPropertyName("spo2_percentage")]     decimal? Spo2Percentage,
+    [property: JsonPropertyName("skin_temp_celsius")]   decimal? SkinTempCelsius,
+    [property: JsonPropertyName("user_calibrating")]    bool? UserCalibrating);
+
+public sealed record WhoopRecoveryPayload(
+    [property: JsonPropertyName("cycle_id")]    long CycleId,
+    [property: JsonPropertyName("sleep_id")]    Guid? SleepId,
+    [property: JsonPropertyName("user_id")]    long UserId,
+    [property: JsonPropertyName("created_at")]  DateTimeOffset CreatedAt,
+    [property: JsonPropertyName("updated_at")]  DateTimeOffset UpdatedAt,
+    [property: JsonPropertyName("score_state")] string ScoreState,
+    [property: JsonPropertyName("score")]       WhoopRecoveryScore? Score);
+
+/// <summary>Listing wrapper returned by GET /developer/v2/recovery.</summary>
+public sealed record WhoopRecoveryListResponse(
+    [property: JsonPropertyName("records")]    IReadOnlyList<WhoopRecoveryPayload> Records,
+    [property: JsonPropertyName("next_token")] string? NextToken);
+
+/// <summary>WHOOP v2 cycle envelope (we only consume the time fields).</summary>
+public sealed record WhoopCyclePayload(
+    [property: JsonPropertyName("id")]       long Id,
+    [property: JsonPropertyName("user_id")]  long UserId,
+    [property: JsonPropertyName("start")]    DateTimeOffset Start,
+    [property: JsonPropertyName("end")]      DateTimeOffset? End,
+    [property: JsonPropertyName("score_state")] string ScoreState);

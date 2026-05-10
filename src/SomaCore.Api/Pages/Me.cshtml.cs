@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Identity.Web;
 
 using SomaCore.Domain.ExternalConnections;
+using SomaCore.Domain.WhoopRecoveries;
 using SomaCore.Infrastructure.Persistence;
 
 namespace SomaCore.Api.Pages;
@@ -24,6 +25,8 @@ public sealed class MeModel(SomaCoreDbContext dbContext) : PageModel
     public string? WhoopEmail { get; private set; }
     public DateTimeOffset? WhoopConnectedAt { get; private set; }
     public string? WhoopBanner { get; private set; }
+
+    public RecoveryViewModel? LatestRecovery { get; private set; }
 
     public async Task OnGetAsync(
         [Microsoft.AspNetCore.Mvc.FromQuery] string? whoop,
@@ -69,6 +72,25 @@ public sealed class MeModel(SomaCoreDbContext dbContext) : PageModel
                     {
                         WhoopEmail = emailEl.GetString();
                     }
+
+                    var recovery = await dbContext.WhoopRecoveries
+                        .AsNoTracking()
+                        .Where(r => r.UserId == user.Id)
+                        .OrderByDescending(r => r.CycleStartAt)
+                        .FirstOrDefaultAsync(cancellationToken);
+
+                    if (recovery is not null)
+                    {
+                        LatestRecovery = new RecoveryViewModel(
+                            recovery.ScoreState,
+                            recovery.RecoveryScore,
+                            recovery.HrvRmssdMilli,
+                            recovery.RestingHeartRate,
+                            recovery.CycleStartAt,
+                            recovery.CycleEndAt,
+                            recovery.IngestedVia,
+                            recovery.IngestedAt);
+                    }
                 }
             }
         }
@@ -81,4 +103,14 @@ public sealed class MeModel(SomaCoreDbContext dbContext) : PageModel
             _           => null,
         };
     }
+
+    public sealed record RecoveryViewModel(
+        string ScoreState,
+        int? RecoveryScore,
+        decimal? HrvRmssdMilli,
+        int? RestingHeartRate,
+        DateTimeOffset CycleStartAt,
+        DateTimeOffset? CycleEndAt,
+        string IngestedVia,
+        DateTimeOffset IngestedAt);
 }

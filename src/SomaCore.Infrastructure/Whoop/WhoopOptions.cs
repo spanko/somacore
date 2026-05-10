@@ -28,6 +28,11 @@ public sealed class WhoopOptions
     [Url]
     public string ProfileUri { get; init; } = "https://api.prod.whoop.com/developer/v2/user/profile/basic";
 
+    /// <summary>Base URL for v2 user-data endpoints (cycles, recoveries).</summary>
+    [Required]
+    [Url]
+    public string ApiBaseUri { get; init; } = "https://api.prod.whoop.com/developer/v2";
+
     /// <summary>Space-separated WHOOP scopes, e.g. "read:recovery read:cycles read:profile offline".</summary>
     [Required]
     public string Scopes { get; init; } = "read:recovery read:cycles read:profile offline";

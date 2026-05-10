@@ -67,6 +67,40 @@
             border: 1px solid color-mix(in srgb, var(--accent) 30%, Canvas);
             margin: 0 0 1rem;
         }
+        .recovery {
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+        }
+        .recovery-score {
+            font-size: 3.25rem;
+            font-weight: 700;
+            line-height: 1;
+        }
+        .recovery-detail { flex: 1; }
+        .metrics {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 0.15rem 0.8rem;
+            margin: 0.5rem 0 0;
+        }
+        .metrics dt {
+            color: var(--muted);
+            font-size: 0.85rem;
+            margin: 0;
+        }
+        .metrics dd { margin: 0; font-variant-numeric: tabular-nums; }
+        .badge {
+            display: inline-block;
+            padding: 0.15rem 0.5rem;
+            border-radius: 999px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+        }
+        .badge-scored     { background: #16a34a22; color: #16a34a; }
+        .badge-pending    { background: #f59e0b22; color: #c1812a; }
+        .badge-unscorable { background: #6b728033; color: var(--muted); }
         details { margin-top: 1.5rem; }
         details summary {
             cursor: pointer;

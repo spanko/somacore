@@ -1,5 +1,6 @@
 @page "/me"
 @model SomaCore.Api.Pages.MeModel
+@using SomaCore.Domain.WhoopRecoveries
 @{
     ViewData["Title"] = "/me";
 }
@@ -36,15 +37,56 @@
 
 <section class="card">
     <h2>Today's recovery</h2>
-    @if (Model.WhoopConnected)
-    {
-        <p class="subtitle">Recovery data lands once webhook + poller are wired up (next session).</p>
-    }
-    else
+    @if (!Model.WhoopConnected)
     {
         <p class="subtitle">Connect WHOOP to see your recovery score.</p>
     }
+    else if (Model.LatestRecovery is null)
+    {
+        <p class="subtitle">No recovery data yet. WHOOP usually scores within a few hours of the wake event.</p>
+    }
+    else if (Model.LatestRecovery.ScoreState == ScoreState.Scored && Model.LatestRecovery.RecoveryScore.HasValue)
+    {
+        <div class="recovery">
+            <div class="recovery-score">@Model.LatestRecovery.RecoveryScore</div>
+            <div class="recovery-detail">
+                <span class="badge badge-scored">SCORED</span>
+                <dl class="metrics">
+                    <dt>HRV</dt>
+                    <dd>@(Model.LatestRecovery.HrvRmssdMilli?.ToString("F1") ?? "—") ms</dd>
+                    <dt>RHR</dt>
+                    <dd>@(Model.LatestRecovery.RestingHeartRate?.ToString() ?? "—") bpm</dd>
+                </dl>
+            </div>
+        </div>
+    }
+    else if (Model.LatestRecovery.ScoreState == ScoreState.PendingScore)
+    {
+        <p><span class="badge badge-pending">PENDING_SCORE</span> WHOOP is still scoring this cycle.</p>
+    }
+    else if (Model.LatestRecovery.ScoreState == ScoreState.Unscorable)
+    {
+        <p><span class="badge badge-unscorable">UNSCORABLE</span> Recovery unavailable for this cycle.</p>
+    }
 </section>
+
+@if (Model.LatestRecovery is not null)
+{
+    <details>
+        <summary>Provenance</summary>
+        <dl>
+            <dt>Cycle window</dt>
+            <dd>
+                @Model.LatestRecovery.CycleStartAt.ToString("u")
+                – @(Model.LatestRecovery.CycleEndAt?.ToString("u") ?? "(in progress)")
+            </dd>
+            <dt>Ingested via</dt>
+            <dd><code>@Model.LatestRecovery.IngestedVia</code></dd>
+            <dt>Ingested at</dt>
+            <dd>@Model.LatestRecovery.IngestedAt.ToString("u")</dd>
+        </dl>
+    </details>
+}
 
 <details>
     <summary>Diagnostics</summary>
