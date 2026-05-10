@@ -161,18 +161,25 @@ asuid.app-dev.tento100.com   TXT     <customDomainVerificationId from `az contai
 
 **Important:** the CNAME must be DNS-only (gray-cloud at Cloudflare). Proxied (orange-cloud) routing breaks Container Apps' managed-certificate provisioning because the platform's HTTP-01 challenge can't reach the origin.
 
-To bind the hostname + cert (one-time after DNS resolves directly):
+The hostname binding is now expressed in `infra/main.bicep` (parameters `customHostname` and `customHostnameCertificateId`), so subsequent `az deployment group create` runs preserve it. The first time, you have to issue the managed cert via the CLI (Bicep can't issue a cert that doesn't exist; once it does, Bicep just references its ID).
 
 ```powershell
-$env = az containerapp env show -g somacore-dev-rg -n somacore-dev-cae --query id -o tsv
-az containerapp hostname add -g somacore-dev-rg -n somacore-api --hostname app-dev.tento100.com
+# One-time first issuance (after DNS resolves directly):
+$envId = az containerapp env show -g somacore-dev-rg -n somacore-dev-cae --query id -o tsv
+az containerapp hostname add  -g somacore-dev-rg -n somacore-api --hostname app-dev.tento100.com
 az containerapp hostname bind -g somacore-dev-rg -n somacore-api `
-    --hostname app-dev.tento100.com `
-    --environment $env `
-    --validation-method CNAME
+    --hostname app-dev.tento100.com --environment $envId --validation-method CNAME
+# Cert provisioning takes ~5-15 min.
+
+# Capture the cert resource ID for the parameters file:
+az containerapp env certificate list -g somacore-dev-rg --name somacore-dev-cae `
+    --managed-certificates-only `
+    --query "[?properties.subjectName=='app-dev.tento100.com'].id | [0]" -o tsv
 ```
 
-Cert provisioning takes ~5–15 minutes. Once issued, `https://app-dev.tento100.com/me` is the canonical URL.
+That ID goes into `infra/parameters.dev.json` under `customHostnameCertificateId`. From then on, `az deployment group create` is sufficient.
+
+**ASP.NET Core gotcha:** Container Apps ingress terminates TLS and forwards plain HTTP, so the container sees `Request.Scheme = http`. Microsoft.Identity.Web composes redirect URIs from that, producing `http://app-dev...` which Entra rejects. `Program.cs` configures `ForwardedHeadersOptions` to honor `X-Forwarded-Proto` and registers `UseForwardedHeaders()` as the first middleware so OIDC redirect URIs come out as `https://app-dev.tento100.com/signin-oidc`. Don't move it.
 
 ## Seeding non-Postgres secrets into Key Vault
 

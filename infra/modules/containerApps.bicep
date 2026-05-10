@@ -42,6 +42,12 @@ param pollerImage string = 'mcr.microsoft.com/azuredocs/aci-helloworld:latest'
 @description('Container ingress target port. .NET 9 ASP.NET Core listens on 8080 inside containers; the placeholder image listens on 80.')
 param targetPort int = 8080
 
+@description('Custom hostname to bind to the Container App ingress (e.g., app-dev.tento100.com). Empty = no custom hostname.')
+param customHostname string = ''
+
+@description('Resource ID of the managed certificate that authorizes the custom hostname. Required when customHostname is set; obtain via the one-time `az containerapp hostname bind` flow.')
+param customHostnameCertificateId string = ''
+
 @description('Key Vault URI (https://<name>.vault.azure.net/), used to compose KV secret references.')
 param keyVaultUri string = ''
 
@@ -173,6 +179,13 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
           {
             weight: 100
             latestRevision: true
+          }
+        ]
+        customDomains: empty(customHostname) ? [] : [
+          {
+            name: customHostname
+            bindingType: 'SniEnabled'
+            certificateId: customHostnameCertificateId
           }
         ]
       }

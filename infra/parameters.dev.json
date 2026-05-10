@@ -19,6 +19,12 @@
     },
     "azureAdWebClientId": {
       "value": "3b053ca8-e91b-4c7e-86ac-bb1e8afff5a3"
+    },
+    "customHostname": {
+      "value": "app-dev.tento100.com"
+    },
+    "customHostnameCertificateId": {
+      "value": "/subscriptions/951c802d-200d-4380-9006-2999df2218d9/resourceGroups/somacore-dev-rg/providers/Microsoft.App/managedEnvironments/somacore-dev-cae/managedCertificates/mc-somacore-dev-c-app-dev-tento100-1637"
     }
   }
 }

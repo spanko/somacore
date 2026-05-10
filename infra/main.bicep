@@ -56,6 +56,12 @@ param azureAdDomain string = ''
 @description('Application (client) ID of the SomaCore Web app registration.')
 param azureAdWebClientId string = ''
 
+@description('Custom hostname to bind to the Container App ingress (e.g., app-dev.tento100.com).')
+param customHostname string = ''
+
+@description('Resource ID of the managed certificate authorizing the custom hostname. Provision once via az containerapp hostname bind.')
+param customHostnameCertificateId string = ''
+
 // ----- naming derived from the prefix ----------------------------------------
 
 var workspaceName  = '${namingPrefix}-law'
@@ -166,6 +172,8 @@ module containerApps 'modules/containerApps.bicep' = {
     azureAdTenantId: azureAdTenantId
     azureAdClientId: azureAdWebClientId
     wireKeyVaultSecrets: wireKeyVaultSecrets
+    customHostname: customHostname
+    customHostnameCertificateId: customHostnameCertificateId
   }
   dependsOn: [
     pgConnectionStringSecret
