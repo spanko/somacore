@@ -265,32 +265,44 @@ az keyvault secret set --vault-name somacore-dev-kv --name web-client-secret --v
 
 To retrieve later: `az keyvault secret show --vault-name somacore-dev-kv --name <name> --query value -o tsv`. Membership in `somacoredev` provides read access; nobody else in the tenant can.
 
-## App deploy (after infra exists)
+## Routine deploys
+
+There are two deploy paths. **Pick the one that matches what you changed.**
+
+| Changed | Use | What it touches | Time |
+|---|---|---|---|
+| C# code, Razor pages, CSS, Dockerfile | [`scripts/deploy-app.ps1`](../scripts/deploy-app.ps1) | Container App image only | ~90 sec |
+| `infra/**` (new resource, env var, role, secret binding, Postgres config) | [`scripts/deploy-infra.ps1`](../scripts/deploy-infra.ps1) | Whole template | 2.5–5 min |
+
+### App rollout — fast path
 
 ```powershell
-# Build container image and push to ACR (remote build; no local Docker needed).
-$tag = git rev-parse --short HEAD
-az acr build `
-    --registry somacoredevacr `
-    --image "somacore-api:$tag" `
-    --image "somacore-api:latest" `
-    --file src/SomaCore.Api/Dockerfile `
-    .
-
-# Roll the Container App over to the new image. Pass it through Bicep so
-# main.bicep stays the source of truth (apiImage parameter).
-$pgPass = az keyvault secret show --vault-name somacore-dev-kv --name postgres-admin-password --query value -o tsv
-az deployment group create `
-    --resource-group somacore-dev-rg `
-    --template-file infra/main.bicep `
-    --parameters infra/parameters.dev.json `
-    --parameters postgresAdminPassword=$pgPass `
-                 apiImage="somacoredevacr.azurecr.io/somacore-api:$tag" `
-                 apiTargetPort=8080 `
-                 wireKeyVaultSecrets=true
+.\scripts\deploy-app.ps1
 ```
 
-`apiTargetPort=8080` matches the .NET 9 ASP.NET Core default in the runtime image; the placeholder helloworld image uses port 80, so the deploy parameter switches alongside the image swap. `wireKeyVaultSecrets=true` flips the Container App over to KV-backed secrets for the postgres connection string and Web/WHOOP client secrets.
+Runs `az acr build` against the local working tree, tags the image with the short git SHA + `:latest`, and `az containerapp update --image ...` to roll the running revision. **No Bicep, no Postgres, no Key Vault.** The Container App's revision history gives us the rollback path (`az containerapp revision activate --revision <previous>`).
+
+The script ends by calling `/admin/health` against the live FQDN — quick smoke that the new revision came up.
+
+### Infra rollout — full path
+
+```powershell
+.\scripts\deploy-infra.ps1            # actually deploy
+.\scripts\deploy-infra.ps1 -WhatIf    # dry-run
+```
+
+Runs `az deployment group create` against `infra/main.bicep`, but **preserves**:
+
+- The current Postgres admin password (read from KV, passed back in — no rotation).
+- The currently-deployed Container App image tag (read from the running app, passed back as `apiImage` — no rollback to the placeholder).
+
+If the deploy fails on `ServerIsBusy` from Postgres (which happens when the server is mid-operation — backup, RP reconciliation, etc.), the script waits 60 sec and retries once. After two failures, you investigate.
+
+### Why the split
+
+A whole-template ARM deployment re-evaluates every resource in `main.bicep`, even ones that haven't changed. Most are trivially idempotent. Postgres extension config (`azure.extensions=PGCRYPTO`) isn't — every PUT takes a server-config lock, which collides with anything else Postgres is doing. Routing app-only changes through the Container App resource directly skips that entire failure mode and shaves ~3 minutes off the loop.
+
+We'll revisit this once we want blue-green deploys: Container Apps natively supports multi-revision traffic split, but the current setup uses `activeRevisionsMode: Single` (auto-cuts traffic to the latest) — adequate for phase-1 single-replica dev, not staged/live promotion.
 
 ## Database migrations
 
