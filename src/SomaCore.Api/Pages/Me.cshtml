@@ -18,15 +18,27 @@
     @if (Model.WhoopConnected)
     {
         <p>
-            Connected
-            @if (Model.WhoopUserId.HasValue) { <text>(WHOOP user <code>@Model.WhoopUserId</code>)</text> }
+            <span class="status-dot status-dot-ok" aria-hidden="true"></span>
+            <strong>Connected.</strong> SomaCore is receiving data from your WHOOP account.
         </p>
-        @if (!string.IsNullOrEmpty(Model.WhoopEmail))
-        {
-            <p class="subtitle">@Model.WhoopEmail</p>
-        }
-        <p class="subtitle">Connected @(Model.WhoopConnectedAt?.ToString("u") ?? "—")</p>
-        <a class="btn btn-secondary" href="/auth/whoop/start">Reconnect</a>
+        <dl class="metrics">
+            @if (Model.WhoopUserId.HasValue)
+            {
+                <dt>WHOOP user</dt>
+                <dd><code>@Model.WhoopUserId</code></dd>
+            }
+            @if (!string.IsNullOrEmpty(Model.WhoopEmail))
+            {
+                <dt>WHOOP email</dt>
+                <dd>@Model.WhoopEmail</dd>
+            }
+            <dt>Connected since</dt>
+            <dd>@(Model.WhoopConnectedAt?.ToString("u") ?? "—")</dd>
+        </dl>
+        <p class="hint">
+            <a class="btn btn-secondary" href="/auth/whoop/start">Reconnect</a>
+            <span class="hint-text">Only use this if recovery data stops arriving or you see an error above.</span>
+        </p>
     }
     else
     {
@@ -43,7 +55,7 @@
     }
     else if (Model.LatestRecovery is null)
     {
-        <p class="subtitle">No recovery data yet. WHOOP usually scores within a few hours of the wake event.</p>
+        <p class="subtitle">No recovery data yet. WHOOP scores recoveries within a few hours of waking — refresh this page once you've been awake a while if you're expecting data.</p>
     }
     else if (Model.LatestRecovery.ScoreState == ScoreState.Scored && Model.LatestRecovery.RecoveryScore.HasValue)
     {
@@ -62,7 +74,7 @@
     }
     else if (Model.LatestRecovery.ScoreState == ScoreState.PendingScore)
     {
-        <p><span class="badge badge-pending">PENDING_SCORE</span> WHOOP is still scoring this cycle.</p>
+        <p><span class="badge badge-pending">PENDING_SCORE</span> WHOOP is still scoring this cycle. Refresh this page in a few minutes.</p>
     }
     else if (Model.LatestRecovery.ScoreState == ScoreState.Unscorable)
     {
