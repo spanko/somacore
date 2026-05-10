@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Identity.Web;
 
+using SomaCore.Domain.ExternalConnections;
 using SomaCore.Infrastructure.Persistence;
 
 namespace SomaCore.Api.Pages;
@@ -18,7 +19,15 @@ public sealed class MeModel(SomaCoreDbContext dbContext) : PageModel
     public Guid? SomaCoreUserId { get; private set; }
     public DateTimeOffset? LastSeenAt { get; private set; }
 
-    public async Task OnGetAsync(CancellationToken cancellationToken)
+    public bool WhoopConnected { get; private set; }
+    public long? WhoopUserId { get; private set; }
+    public string? WhoopEmail { get; private set; }
+    public DateTimeOffset? WhoopConnectedAt { get; private set; }
+    public string? WhoopBanner { get; private set; }
+
+    public async Task OnGetAsync(
+        [Microsoft.AspNetCore.Mvc.FromQuery] string? whoop,
+        CancellationToken cancellationToken)
     {
         DisplayName = User.FindFirstValue("name") ?? "(no display name)";
         Email = User.FindFirstValue("preferred_username")
@@ -37,7 +46,39 @@ public sealed class MeModel(SomaCoreDbContext dbContext) : PageModel
             {
                 SomaCoreUserId = user.Id;
                 LastSeenAt = user.LastSeenAt;
+
+                var connection = await dbContext.ExternalConnections
+                    .AsNoTracking()
+                    .Where(c => c.UserId == user.Id
+                             && c.Source == ConnectionSource.Whoop
+                             && c.Status == ConnectionStatus.Active)
+                    .OrderByDescending(c => c.CreatedAt)
+                    .FirstOrDefaultAsync(cancellationToken);
+
+                if (connection is not null)
+                {
+                    WhoopConnected = true;
+                    WhoopConnectedAt = connection.CreatedAt;
+                    if (connection.ConnectionMetadata.RootElement.TryGetProperty("whoop_user_id", out var idEl)
+                        && idEl.ValueKind == System.Text.Json.JsonValueKind.Number)
+                    {
+                        WhoopUserId = idEl.GetInt64();
+                    }
+                    if (connection.ConnectionMetadata.RootElement.TryGetProperty("whoop_email", out var emailEl)
+                        && emailEl.ValueKind == System.Text.Json.JsonValueKind.String)
+                    {
+                        WhoopEmail = emailEl.GetString();
+                    }
+                }
             }
         }
+
+        WhoopBanner = whoop switch
+        {
+            "connected" => "WHOOP connected.",
+            "failed"    => "WHOOP connection failed. Please try again.",
+            "cancelled" => "WHOOP authorization was cancelled.",
+            _           => null,
+        };
     }
 }

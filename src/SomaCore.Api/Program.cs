@@ -9,7 +9,9 @@ using Serilog.Formatting.Compact;
 
 using SomaCore.Api;
 using SomaCore.Api.Authentication;
+using SomaCore.Api.Whoop;
 using SomaCore.Infrastructure;
+using SomaCore.Infrastructure.Whoop;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -26,6 +28,9 @@ var connectionString = builder.Configuration.GetConnectionString("Postgres")
     ?? LocalDevConnectionString;
 
 builder.Services.AddSomaCoreInfrastructure(connectionString);
+builder.Services.AddSomaCoreKeyVault(builder.Configuration);
+builder.Services.AddSomaCoreWhoop(builder.Configuration);
+builder.Services.AddSingleton<IWhoopStateProtector, WhoopStateProtector>();
 
 // Container Apps ingress terminates TLS; the container sees plain HTTP. Honor
 // X-Forwarded-Proto/Host so OIDC redirect_uri composition uses https://app-dev...
@@ -95,6 +100,7 @@ app.MapGet("/admin/health", () => Results.Ok(new { status = "ok" }))
     .AllowAnonymous();
 
 app.MapRazorPages();
+app.MapWhoopAuthEndpoints();
 
 app.Run();
 

@@ -7,15 +7,43 @@
 <h1>Welcome, @Model.DisplayName</h1>
 <p class="subtitle">Signed in as @Model.Email</p>
 
+@if (!string.IsNullOrEmpty(Model.WhoopBanner))
+{
+    <p class="banner">@Model.WhoopBanner</p>
+}
+
 <section class="card">
     <h2>WHOOP</h2>
-    <p>Not connected yet.</p>
-    <a class="btn" href="/auth/whoop/start" aria-disabled="true" title="Wired up in Session 4">Connect WHOOP</a>
+    @if (Model.WhoopConnected)
+    {
+        <p>
+            Connected
+            @if (Model.WhoopUserId.HasValue) { <text>(WHOOP user <code>@Model.WhoopUserId</code>)</text> }
+        </p>
+        @if (!string.IsNullOrEmpty(Model.WhoopEmail))
+        {
+            <p class="subtitle">@Model.WhoopEmail</p>
+        }
+        <p class="subtitle">Connected @(Model.WhoopConnectedAt?.ToString("u") ?? "—")</p>
+        <a class="btn btn-secondary" href="/auth/whoop/start">Reconnect</a>
+    }
+    else
+    {
+        <p>Not connected yet.</p>
+        <a class="btn" href="/auth/whoop/start">Connect WHOOP</a>
+    }
 </section>
 
 <section class="card">
     <h2>Today's recovery</h2>
-    <p class="subtitle">Connect WHOOP to see your recovery score.</p>
+    @if (Model.WhoopConnected)
+    {
+        <p class="subtitle">Recovery data lands once webhook + poller are wired up (next session).</p>
+    }
+    else
+    {
+        <p class="subtitle">Connect WHOOP to see your recovery score.</p>
+    }
 </section>
 
 <details>

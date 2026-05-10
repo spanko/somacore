@@ -19,6 +19,7 @@
     </PackageReference>
     <PackageReference Include="FluentAssertions" />
     <PackageReference Include="NSubstitute" />
+    <PackageReference Include="Microsoft.AspNetCore.DataProtection.Extensions" />
   </ItemGroup>
 
   <ItemGroup>

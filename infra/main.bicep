@@ -62,6 +62,9 @@ param customHostname string = ''
 @description('Resource ID of the managed certificate authorizing the custom hostname. Provision once via az containerapp hostname bind.')
 param customHostnameCertificateId string = ''
 
+@description('WHOOP OAuth callback URI. Must be registered in the WHOOP developer dashboard. Typically https://<customHostname>/auth/whoop/callback.')
+param whoopRedirectUri string = ''
+
 // ----- naming derived from the prefix ----------------------------------------
 
 var workspaceName  = '${namingPrefix}-law'
@@ -174,6 +177,7 @@ module containerApps 'modules/containerApps.bicep' = {
     wireKeyVaultSecrets: wireKeyVaultSecrets
     customHostname: customHostname
     customHostnameCertificateId: customHostnameCertificateId
+    whoopRedirectUri: whoopRedirectUri
   }
   dependsOn: [
     pgConnectionStringSecret

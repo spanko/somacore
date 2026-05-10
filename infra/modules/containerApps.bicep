@@ -58,6 +58,9 @@ param azureAdTenantId string = ''
 param azureAdClientId string = ''
 param azureAdCallbackPath string = '/signin-oidc'
 
+@description('WHOOP OAuth callback URI registered in the WHOOP developer dashboard.')
+param whoopRedirectUri string = ''
+
 @description('Whether to bind KV-backed app secrets (postgres connection string, web/whoop client secrets) onto the Container App. Set true once KV secrets are populated and the image actually consumes them.')
 param wireKeyVaultSecrets bool = false
 
@@ -113,6 +116,14 @@ var staticEnv = [
   {
     name: 'AzureAd__CallbackPath'
     value: azureAdCallbackPath
+  }
+  {
+    name: 'KeyVault__VaultUri'
+    value: keyVaultUri
+  }
+  {
+    name: 'Whoop__RedirectUri'
+    value: whoopRedirectUri
   }
 ]
 

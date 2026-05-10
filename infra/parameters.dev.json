@@ -25,6 +25,9 @@
     },
     "customHostnameCertificateId": {
       "value": "/subscriptions/951c802d-200d-4380-9006-2999df2218d9/resourceGroups/somacore-dev-rg/providers/Microsoft.App/managedEnvironments/somacore-dev-cae/managedCertificates/mc-somacore-dev-c-app-dev-tento100-1637"
+    },
+    "whoopRedirectUri": {
+      "value": "https://app-dev.tento100.com/auth/whoop/callback"
     }
   }
 }
