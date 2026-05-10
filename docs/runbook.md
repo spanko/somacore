@@ -148,6 +148,45 @@ az deployment group create `
 
 Typical deploy time: 5–10 minutes (Postgres provisioning is the slow step).
 
+## WHOOP recovery ingestion (phase 1)
+
+The webhook + work-queue path is in place; reconciliation poller and on-open pull come in session 5b.
+
+### Real-time path
+
+1. WHOOP POSTs `recovery.updated` to `POST /webhooks/whoop`.
+2. The endpoint reads the raw body (cap 64 KiB), validates the HMAC against `whoop-client-secret` (WHOOP signs webhooks with the OAuth client secret, not a separate webhook secret). Signature format: `base64(HMAC-SHA256(timestamp ‖ body, client_secret))`. Reject if header missing, signature wrong, or timestamp >5 min skewed.
+3. Resolve the WHOOP `user_id` (numeric) → `external_connections` row via jsonb `@>` against `connection_metadata`.
+4. Insert a `webhook_events` row with `status='received'` (or `'discarded'` for non-recovery event types). Idempotent on `(source, source_event_id, source_trace_id)` — duplicate deliveries return 200 silently.
+5. Return 200 within ~50 ms.
+
+### Background drainer
+
+`WhoopWebhookDrainer` is a `BackgroundService` running in the API process (per ADR 0009). Every 2s it:
+
+- `SELECT ... FROM webhook_events WHERE status = 'received' ... FOR UPDATE SKIP LOCKED LIMIT 5`
+- Marks each row `'processing'`
+- Calls `IRecoveryIngestionHandler.IngestAsync` for each — fetches the matching recovery from WHOOP, upserts a `whoop_recoveries` row keyed by `(external_connection_id, whoop_cycle_id)`
+- Marks the event `'processed'` (or `'failed'` with truncated error on exception)
+
+A token cache fronts WHOOP API calls: 5-min in-process TTL per `external_connection_id`, refreshes via `/oauth/oauth2/token` on miss, rotates the refresh token in KV and bumps `last_refresh_at` / `next_refresh_at` on the connection row.
+
+### Verifying the path end-to-end
+
+```sql
+-- Did a webhook arrive?
+SELECT id, source, event_type, status, received_at, processed_at, last_error
+FROM webhook_events
+ORDER BY received_at DESC LIMIT 10;
+
+-- Did a recovery get persisted?
+SELECT user_id, whoop_cycle_id, score_state, recovery_score, ingested_via, ingested_at
+FROM whoop_recoveries
+ORDER BY cycle_start_at DESC LIMIT 10;
+```
+
+If `webhook_events.status = 'failed'`, the `last_error` column carries the reason and there's a matching log line in App Insights tagged with `Whoop.Webhook` or `WhoopWebhookDrainer`. If `status = 'received'` for >30 sec, the drainer has stalled — check container logs for exceptions in `DrainOnceAsync`.
+
 ## WHOOP OAuth flow (phase 1)
 
 The signed-in `/me` page exposes a "Connect WHOOP" button (`<a href="/auth/whoop/start">`). Both endpoints are `[Authorize]`-gated.
