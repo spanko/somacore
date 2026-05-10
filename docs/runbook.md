@@ -148,6 +148,36 @@ az deployment group create `
 
 Typical deploy time: 5–10 minutes (Postgres provisioning is the slow step).
 
+## WHOOP OAuth flow (phase 1)
+
+The signed-in `/me` page exposes a "Connect WHOOP" button (`<a href="/auth/whoop/start">`). Both endpoints are `[Authorize]`-gated.
+
+| Endpoint | Behavior |
+|---|---|
+| `GET /auth/whoop/start` | Looks up the SomaCore user row by Entra OID, mints an opaque state token (HttpOnly Secure SameSite=Lax cookie scoped to `/auth/whoop`, 10-min expiry), audits an `authorize` row, redirects to `https://api.prod.whoop.com/oauth/oauth2/auth?...&state=<encrypted>`. |
+| `GET /auth/whoop/callback` | Pops the cookie, verifies the query `state` matches and decrypts, cross-checks the cookie's user vs the signed-in principal, exchanges code for tokens at `/oauth/oauth2/token`, fetches `/developer/v2/user/profile/basic`. On success: marks any existing `active` row revoked, inserts a fresh active `external_connections` row, writes the refresh token to `whoop-refresh-{somacoreUserId}` in KV, audits `callback_success`, redirects to `/me?whoop=connected`. |
+
+Configuration (env vars on the Container App, set by Bicep):
+
+| Var | Source |
+|---|---|
+| `Whoop__ClientId` | KV: `whoop-client-id` |
+| `Whoop__ClientSecret` | KV: `whoop-client-secret` |
+| `Whoop__RedirectUri` | parameter `whoopRedirectUri` |
+| `Whoop__AuthorizeUri` / `TokenUri` / `ProfileUri` / `Scopes` | defaults in `WhoopOptions` (override via env if WHOOP changes endpoints or scopes change) |
+| `KeyVault__VaultUri` | derived from the deployed vault |
+
+Required WHOOP developer-dashboard configuration (one-time, manual):
+
+- Redirect URIs include both `https://app-dev.tento100.com/auth/whoop/callback` and `https://localhost:5001/auth/whoop/callback`.
+- Webhook URL is **not** set yet — that's session 5.
+
+Debugging a failed connect:
+
+1. `select * from oauth_audit where source = 'whoop' order by occurred_at desc limit 10;` — shows authorize / callback_success / callback_failed rows with the error message we recorded.
+2. App Insights traces filtered by `Whoop.Auth.Start` / `Whoop.Auth.Callback` source contexts (see Serilog `SourceContext` field).
+3. Container App console logs: `az containerapp logs show -g somacore-dev-rg -n somacore-api --type console --tail 50`.
+
 ## Custom domain (`app-dev.tento100.com`)
 
 The Container App is fronted by `app-dev.tento100.com` so OIDC redirect URIs and the user-facing URL stay stable across redeploys.
