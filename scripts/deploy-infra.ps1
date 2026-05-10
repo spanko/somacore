@@ -59,6 +59,8 @@ if ($WhatIf) {
 
 function Invoke-Deploy {
     $name = "somacore-dev-infra-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
+    # Pipe to Out-Host so the table prints but doesn't pollute our return; the
+    # caller reads $LASTEXITCODE which carries the actual az exit code.
     az deployment group create `
         --resource-group  $ResourceGroup `
         --name            $name `
@@ -66,18 +68,18 @@ function Invoke-Deploy {
         --parameters      $ParameterFile `
         --parameters      $paramOverrides `
         --query "{state:properties.provisioningState, duration:properties.duration}" `
-        -o table
-    return $LASTEXITCODE
+        -o table | Out-Host
 }
 
 Write-Host "`n=== Deploying ===" -ForegroundColor Cyan
-$rc = Invoke-Deploy
+Invoke-Deploy
+$rc = $LASTEXITCODE
 if ($rc -ne 0) {
-    Write-Host "`nFirst attempt failed; checking whether to retry..." -ForegroundColor Yellow
-    # Most common transient is Postgres ServerIsBusy. Wait, then retry once.
+    Write-Host "`nFirst attempt failed (exit $rc); waiting 60s and retrying..." -ForegroundColor Yellow
     Start-Sleep -Seconds 60
     Write-Host "=== Retrying ===" -ForegroundColor Cyan
-    $rc = Invoke-Deploy
+    Invoke-Deploy
+    $rc = $LASTEXITCODE
 }
 
 if ($rc -ne 0) {
