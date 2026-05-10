@@ -46,6 +46,19 @@ builder.Services
     .AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
     .AddMicrosoftIdentityWebApp(builder.Configuration.GetSection("AzureAd"));
 
+// Use the OIDC authorization-code flow with PKCE. MIW defaults to implicit
+// id_token (response_type=id_token); the SomaCore Web app reg has implicit
+// flows disabled per security best practice, so we opt into code flow which
+// uses the back-channel /token endpoint with the client secret.
+builder.Services.Configure<OpenIdConnectOptions>(
+    OpenIdConnectDefaults.AuthenticationScheme,
+    options =>
+    {
+        options.ResponseType = "code";
+        options.UsePkce = true;
+        options.SaveTokens = false; // /me reads claims, not tokens; nothing to persist
+    });
+
 // Default policy = "must be authenticated"; individual endpoints opt out via [AllowAnonymous].
 builder.Services.AddAuthorization(options =>
 {
