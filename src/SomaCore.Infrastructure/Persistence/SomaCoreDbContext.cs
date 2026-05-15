@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 
 using SomaCore.Domain.ExternalConnections;
+using SomaCore.Domain.JobRuns;
 using SomaCore.Domain.OAuthAudit;
 using SomaCore.Domain.Users;
 using SomaCore.Domain.WebhookEvents;
@@ -24,6 +25,8 @@ public class SomaCoreDbContext : DbContext
     public DbSet<WebhookEvent> WebhookEvents => Set<WebhookEvent>();
 
     public DbSet<OAuthAuditEntry> OAuthAuditEntries => Set<OAuthAuditEntry>();
+
+    public DbSet<JobRun> JobRuns => Set<JobRun>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -120,7 +120,9 @@ app.UseMiddleware<JitUserProvisioningMiddleware>();
 app.MapGet("/", () => Results.Ok(ServiceInfo.Default))
     .AllowAnonymous();
 
-app.MapGet("/admin/health", () => Results.Ok(new { status = "ok" }))
+// Simple liveness probe — anonymous, no DB. The rich /admin/health Razor page
+// (admin-gated) shows webhook/recovery/job-run counts.
+app.MapGet("/admin/health/live", () => Results.Ok(new { status = "ok" }))
     .AllowAnonymous();
 
 app.MapRazorPages();

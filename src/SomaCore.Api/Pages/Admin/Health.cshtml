@@ -1,0 +1,120 @@
+@page "/admin/health"
+@model SomaCore.Api.Pages.Admin.HealthModel
+@using SomaCore.Api.Time
+@{
+    ViewData["Title"] = "/admin/health";
+}
+
+<h1>Health</h1>
+<p class="subtitle">snapshot @MountainTime.Format(Model.GeneratedAt)</p>
+
+<section class="card">
+    <h2>Webhooks · last 24h</h2>
+    <dl class="metrics">
+        <dt>Received (queued)</dt><dd>@Model.Webhooks.Received</dd>
+        <dt>Processing</dt><dd>@Model.Webhooks.Processing</dd>
+        <dt>Processed</dt><dd>@Model.Webhooks.Processed</dd>
+        <dt>Failed</dt><dd>@Model.Webhooks.Failed</dd>
+        <dt>Discarded</dt><dd>@Model.Webhooks.Discarded</dd>
+        <dt>Last received</dt><dd>@MountainTime.Format(Model.Webhooks.LastReceivedAt)</dd>
+        <dt>Last processed</dt><dd>@MountainTime.Format(Model.Webhooks.LastProcessedAt)</dd>
+    </dl>
+</section>
+
+<section class="card">
+    <h2>Drainer queue</h2>
+    <dl class="metrics">
+        <dt>Unprocessed depth</dt><dd>@Model.DrainerQueueDepth</dd>
+        <dt>Oldest unprocessed</dt><dd>@MountainTime.Format(Model.OldestUnprocessedReceivedAt)</dd>
+    </dl>
+</section>
+
+<section class="card">
+    <h2>Recoveries · last 7d</h2>
+    <dl class="metrics">
+        <dt>SCORED</dt><dd>@Model.Recoveries.Scored</dd>
+        <dt>PENDING_SCORE</dt><dd>@Model.Recoveries.Pending</dd>
+        <dt>UNSCORABLE</dt><dd>@Model.Recoveries.Unscorable</dd>
+        <dt>Last ingested</dt><dd>@MountainTime.Format(Model.Recoveries.LastIngestedAt)</dd>
+    </dl>
+</section>
+
+<section class="card">
+    <h2>Connections</h2>
+    @if (Model.Connections.Count == 0)
+    {
+        <p class="subtitle">No WHOOP connections yet.</p>
+    }
+    else
+    {
+        <div class="admin-table-wrap">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>User ID</th>
+                        <th>Status</th>
+                        <th>Last refresh</th>
+                        <th>Next refresh</th>
+                        <th>Failures</th>
+                        <th>Last error</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var c in Model.Connections)
+                    {
+                        <tr>
+                            <td><code>@c.UserId</code></td>
+                            <td>@c.Status</td>
+                            <td>@MountainTime.Format(c.LastRefreshAt)</td>
+                            <td>@MountainTime.Format(c.NextRefreshAt)</td>
+                            <td>@c.RefreshFailureCount</td>
+                            <td>@(c.LastRefreshError ?? "—")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+<section class="card">
+    <h2>Recent job runs</h2>
+    @if (Model.RecentJobRuns.Count == 0)
+    {
+        <p class="subtitle">No job runs yet.</p>
+    }
+    else
+    {
+        <div class="admin-table-wrap">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Job</th>
+                        <th>Started</th>
+                        <th>Ended</th>
+                        <th>Outcome</th>
+                        <th>Error</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var j in Model.RecentJobRuns)
+                    {
+                        <tr>
+                            <td><code>@j.JobName</code></td>
+                            <td>@MountainTime.Format(j.StartedAt)</td>
+                            <td>@MountainTime.Format(j.EndedAt)</td>
+                            <td>
+                                @if (j.Success == true) { <span class="badge badge-scored">ok</span> }
+                                else if (j.Success == false) { <span class="badge badge-unscorable">fail</span> }
+                                else { <span class="subtitle">running</span> }
+                            </td>
+                            <td>@(j.ErrorMessage ?? "—")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+<p class="signout"><a href="/me">← back to /me</a> · <a href="/admin/users">Admin: users</a></p>

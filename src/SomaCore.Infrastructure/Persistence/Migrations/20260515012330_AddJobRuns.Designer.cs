@@ -3,6 +3,7 @@ using System;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SomaCore.Infrastructure.Persistence;
@@ -12,9 +13,11 @@ using SomaCore.Infrastructure.Persistence;
 namespace SomaCore.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(SomaCoreDbContext))]
-    partial class SomaCoreDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260515012330_AddJobRuns")]
+    partial class AddJobRuns
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

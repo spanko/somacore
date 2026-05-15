@@ -36,8 +36,14 @@ param acrLoginServer string
 @description('Image reference for the API container. Default is the placeholder.')
 param apiImage string = 'mcr.microsoft.com/azuredocs/aci-helloworld:latest'
 
-@description('Image reference for the poller job. Default is the placeholder.')
-param pollerImage string = 'mcr.microsoft.com/azuredocs/aci-helloworld:latest'
+@description('Image reference for the IngestionJobs container (used by both Container Apps Jobs). Default is the placeholder.')
+param jobsImage string = 'mcr.microsoft.com/azuredocs/aci-helloworld:latest'
+
+@description('Cron schedule (UTC) for the reconciliation poller. Default covers 4-11 AM Mountain (10-18 UTC) every 30 min.')
+param pollerCron string = '*/30 10-18 * * *'
+
+@description('Cron schedule (UTC) for the token refresh sweeper. Default every 30 min, all day.')
+param tokenSweeperCron string = '*/30 * * * *'
 
 @description('Container ingress target port. .NET 9 ASP.NET Core listens on 8080 inside containers; the placeholder image listens on 80.')
 param targetPort int = 8080
@@ -228,13 +234,19 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
         }
       ]
       scale: {
-        minReplicas: 0
+        // Keep one replica warm to avoid cold-start 500s on incoming
+        // WHOOP webhooks (WHOOP has a ~5s request timeout, .NET cold start
+        // takes 3–8s, so a scale-to-zero replica gets cancelled mid-handshake).
+        minReplicas: 1
         maxReplicas: 3
       }
     }
   }
 }
 
+// Reconciliation poller — runs on cron, walks active connections, calls the
+// shared IRecoveryIngestionHandler. Manual triggers are also enabled
+// (triggerType: 'Schedule' still allows ad-hoc `az containerapp job start`).
 resource pollerJob 'Microsoft.App/jobs@2024-03-01' = {
   name: pollerJobName
   location: location
@@ -248,10 +260,11 @@ resource pollerJob 'Microsoft.App/jobs@2024-03-01' = {
     environmentId: env.id
     workloadProfileName: 'Consumption'
     configuration: {
-      replicaTimeout: 1800
-      replicaRetryLimit: 1
-      triggerType: 'Manual'
-      manualTriggerConfig: {
+      replicaTimeout: 600   // 10 min hard cap per run
+      replicaRetryLimit: 0
+      triggerType: 'Schedule'
+      scheduleTriggerConfig: {
+        cronExpression: pollerCron
         replicaCompletionCount: 1
         parallelism: 1
       }
@@ -267,7 +280,56 @@ resource pollerJob 'Microsoft.App/jobs@2024-03-01' = {
       containers: [
         {
           name: 'poller'
-          image: pollerImage
+          image: jobsImage
+          args: [ '--job=reconciliation-poller' ]
+          resources: {
+            cpu: json('0.25')
+            memory: '0.5Gi'
+          }
+          env: concat(staticEnv, kvEnv)
+        }
+      ]
+    }
+  }
+}
+
+// Token refresh sweeper — runs on cron, refreshes any access token whose
+// next_refresh_at is within the sweeper's lookahead.
+resource refreshSweeperJob 'Microsoft.App/jobs@2024-03-01' = {
+  name: 'somacore-refresh-sweeper'
+  location: location
+  identity: {
+    type: 'UserAssigned'
+    userAssignedIdentities: {
+      '${uamiId}': {}
+    }
+  }
+  properties: {
+    environmentId: env.id
+    workloadProfileName: 'Consumption'
+    configuration: {
+      replicaTimeout: 300   // 5 min hard cap per run
+      replicaRetryLimit: 0
+      triggerType: 'Schedule'
+      scheduleTriggerConfig: {
+        cronExpression: tokenSweeperCron
+        replicaCompletionCount: 1
+        parallelism: 1
+      }
+      registries: [
+        {
+          server: acrLoginServer
+          identity: uamiId
+        }
+      ]
+      secrets: kvSecrets
+    }
+    template: {
+      containers: [
+        {
+          name: 'sweeper'
+          image: jobsImage
+          args: [ '--job=token-refresh-sweeper' ]
           resources: {
             cpu: json('0.25')
             memory: '0.5Gi'
@@ -283,3 +345,4 @@ output environmentId string = env.id
 output apiFqdn string = apiApp.properties.configuration.ingress.fqdn
 output apiAppName string = apiApp.name
 output pollerJobName string = pollerJob.name
+output refreshSweeperJobName string = refreshSweeperJob.name

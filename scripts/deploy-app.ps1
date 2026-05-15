@@ -50,7 +50,7 @@ Write-Host "Health: " -NoNewline
 $apiBase = az containerapp show -g $ResourceGroup -n $AppName --query "properties.configuration.ingress.fqdn" -o tsv
 try {
     Start-Sleep -Seconds 5
-    $r = Invoke-WebRequest -Uri "https://$apiBase/admin/health" -UseBasicParsing -TimeoutSec 30
+    $r = Invoke-WebRequest -Uri "https://$apiBase/admin/health/live" -UseBasicParsing -TimeoutSec 30
     Write-Host "$($r.StatusCode) — $($r.Content)" -ForegroundColor Green
 } catch {
     Write-Host "$($_.Exception.Message)" -ForegroundColor Yellow

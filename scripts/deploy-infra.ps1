@@ -37,11 +37,23 @@ $currentImage = az containerapp show `
     --name           $AppName `
     --query "properties.template.containers[0].image" -o tsv
 if (-not $currentImage) { throw "Couldn't read current image from Container App $AppName." }
-Write-Host "  current image:           $currentImage"
+Write-Host "  current api image:       $currentImage"
+
+# Jobs image — read from the poller job. Stays at the placeholder until the
+# first jobs image is pushed; after that, preserves the running tag.
+$currentJobsImage = az containerapp job show `
+    --resource-group $ResourceGroup `
+    --name           'somacore-poller' `
+    --query "properties.template.containers[0].image" -o tsv 2>$null
+if (-not $currentJobsImage) {
+    $currentJobsImage = 'mcr.microsoft.com/azuredocs/aci-helloworld:latest'
+}
+Write-Host "  current jobs image:      $currentJobsImage"
 
 $paramOverrides = @(
     "postgresAdminPassword=$pgPass"
     "apiImage=$currentImage"
+    "jobsImage=$currentJobsImage"
     'apiTargetPort=8080'
     'wireKeyVaultSecrets=true'
 )

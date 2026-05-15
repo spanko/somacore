@@ -41,6 +41,9 @@ param postgresAdminPassword string
 @description('API container image. Default placeholder; override once the SomaCore.Api image has been pushed to ACR.')
 param apiImage string = 'mcr.microsoft.com/azuredocs/aci-helloworld:latest'
 
+@description('Jobs container image (used by both Container Apps Jobs). Default placeholder; override once the SomaCore.IngestionJobs image has been pushed to ACR.')
+param jobsImage string = 'mcr.microsoft.com/azuredocs/aci-helloworld:latest'
+
 @description('Container App ingress target port. .NET 9 ASP.NET Core defaults to 8080; the placeholder image listens on 80.')
 param apiTargetPort int = 80
 
@@ -172,6 +175,7 @@ module containerApps 'modules/containerApps.bicep' = {
     uamiClientId: identity.outputs.clientId
     acrLoginServer: registry.outputs.loginServer
     apiImage: apiImage
+    jobsImage: jobsImage
     targetPort: apiTargetPort
     keyVaultUri: keyVault.outputs.uri
     azureAdDomain: azureAdDomain
