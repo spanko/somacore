@@ -17,6 +17,7 @@ public sealed class MeModel(
     IAuthorizationService authorizationService) : PageModel
 {
     public bool IsAdmin { get; private set; }
+
     public string DisplayName { get; private set; } = string.Empty;
     public string Email { get; private set; } = string.Empty;
     public Guid? EntraOid { get; private set; }
@@ -30,6 +31,8 @@ public sealed class MeModel(
     public string? WhoopBanner { get; private set; }
 
     public RecoveryViewModel? LatestRecovery { get; private set; }
+
+    public IReadOnlyList<RecoveryViewModel> RecentRecoveries { get; private set; } = Array.Empty<RecoveryViewModel>();
 
     public async Task OnGetAsync(
         [Microsoft.AspNetCore.Mvc.FromQuery] string? whoop,
@@ -76,24 +79,24 @@ public sealed class MeModel(
                         WhoopEmail = emailEl.GetString();
                     }
 
-                    var recovery = await dbContext.WhoopRecoveries
+                    var rows = await dbContext.WhoopRecoveries
                         .AsNoTracking()
                         .Where(r => r.UserId == user.Id)
                         .OrderByDescending(r => r.CycleStartAt)
-                        .FirstOrDefaultAsync(cancellationToken);
+                        .Take(14)
+                        .Select(r => new RecoveryViewModel(
+                            r.ScoreState,
+                            r.RecoveryScore,
+                            r.HrvRmssdMilli,
+                            r.RestingHeartRate,
+                            r.CycleStartAt,
+                            r.CycleEndAt,
+                            r.IngestedVia,
+                            r.IngestedAt))
+                        .ToListAsync(cancellationToken);
 
-                    if (recovery is not null)
-                    {
-                        LatestRecovery = new RecoveryViewModel(
-                            recovery.ScoreState,
-                            recovery.RecoveryScore,
-                            recovery.HrvRmssdMilli,
-                            recovery.RestingHeartRate,
-                            recovery.CycleStartAt,
-                            recovery.CycleEndAt,
-                            recovery.IngestedVia,
-                            recovery.IngestedAt);
-                    }
+                    RecentRecoveries = rows;
+                    LatestRecovery = rows.FirstOrDefault();
                 }
             }
         }

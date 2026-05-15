@@ -1,11 +1,12 @@
 @page "/admin/users"
 @model SomaCore.Api.Pages.Admin.UsersModel
+@using SomaCore.Api.Time
 @{
     ViewData["Title"] = "/admin/users";
 }
 
 <h1>Users</h1>
-<p class="subtitle">@Model.Rows.Count total · snapshot @Model.GeneratedAt.ToString("u")</p>
+<p class="subtitle">@Model.Rows.Count total · snapshot @MountainTime.Format(Model.GeneratedAt)</p>
 
 @if (Model.Rows.Count == 0)
 {
@@ -32,17 +33,17 @@ else
                             <div>@(u.DisplayName ?? "(no name)")</div>
                             <div class="subtitle"><code>@u.Email</code></div>
                         </td>
-                        <td>@u.CreatedAt.ToString("u")</td>
-                        <td>@(u.LastSeenAt?.ToString("u") ?? "—")</td>
+                        <td>@MountainTime.Format(u.CreatedAt)</td>
+                        <td>@MountainTime.Format(u.LastSeenAt)</td>
                         <td>
                             @if (u.ActiveWhoopConnectedAt.HasValue)
                             {
                                 <span class="status-dot status-dot-ok" aria-hidden="true"></span>
                                 <text>connected</text>
-                                <div class="subtitle">since @u.ActiveWhoopConnectedAt.Value.ToString("u")</div>
+                                <div class="subtitle">since @MountainTime.Format(u.ActiveWhoopConnectedAt.Value)</div>
                                 @if (u.LastRefreshAt.HasValue)
                                 {
-                                    <div class="subtitle">last refresh @u.LastRefreshAt.Value.ToString("u")</div>
+                                    <div class="subtitle">last refresh @MountainTime.Format(u.LastRefreshAt.Value)</div>
                                 }
                             }
                             else
@@ -60,7 +61,7 @@ else
                                     }
                                     <span class="badge @BadgeClass(u.LatestRecoveryState)">@u.LatestRecoveryState</span>
                                 </div>
-                                <div class="subtitle">cycle @u.LatestRecoveryCycleAt.Value.ToString("u")</div>
+                                <div class="subtitle">cycle @MountainTime.Format(u.LatestRecoveryCycleAt.Value)</div>
                             }
                             else
                             {
