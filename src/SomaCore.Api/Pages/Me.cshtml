@@ -14,6 +14,11 @@
     <p class="banner">@Model.WhoopBanner</p>
 }
 
+@if (Model.ForcedOnOpenPull)
+{
+    <p class="banner">Forced on-open pull triggered (<code>?force=true</code>). Check the latest recovery's <em>Provenance</em> for <code>ingested_via = on_open_pull</code>.</p>
+}
+
 <section class="card">
     <h2>WHOOP</h2>
     @if (Model.WhoopConnected)

@@ -45,8 +45,12 @@ public sealed class MeModel(
 
     public IReadOnlyList<RecoveryViewModel> RecentRecoveries { get; private set; } = Array.Empty<RecoveryViewModel>();
 
+    /// <summary>True when this request forced an on-open pull (via <c>?force=true</c>).</summary>
+    public bool ForcedOnOpenPull { get; private set; }
+
     public async Task OnGetAsync(
         [Microsoft.AspNetCore.Mvc.FromQuery] string? whoop,
+        [Microsoft.AspNetCore.Mvc.FromQuery] bool? force,
         CancellationToken cancellationToken)
     {
         DisplayName = User.FindFirstValue("name") ?? "(no display name)";
@@ -97,10 +101,15 @@ public sealed class MeModel(
                     // On-open pull: if we have no recovery on file OR the latest is stale,
                     // synchronously hit WHOOP via the shared ingestion handler. The page
                     // takes a slower load (3-5 sec) once, then renders the fresh data.
+                    // `?force=true` overrides the staleness check so the pull is
+                    // demonstrable on demand (admin-only — gated below).
                     var stale = LatestRecovery is null
                         || (DateTimeOffset.UtcNow - LatestRecovery.CycleStartAt) > StalenessThreshold;
-                    if (stale)
+                    var adminForce = force == true
+                        && (await authorizationService.AuthorizeAsync(User, "Admin")).Succeeded;
+                    if (stale || adminForce)
                     {
+                        ForcedOnOpenPull = adminForce;
                         await TriggerOnOpenPullAsync(connection.Id, cancellationToken);
                         // Re-query after the pull so the view reflects the new state.
                         rows = await LoadRecentAsync(user.Id, cancellationToken);
