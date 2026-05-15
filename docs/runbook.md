@@ -304,6 +304,35 @@ A whole-template ARM deployment re-evaluates every resource in `main.bicep`, eve
 
 We'll revisit this once we want blue-green deploys: Container Apps natively supports multi-revision traffic split, but the current setup uses `activeRevisionsMode: Single` (auto-cuts traffic to the latest) — adequate for phase-1 single-replica dev, not staged/live promotion.
 
+### Land-mine: the empty-password failure mode
+
+Bicep silently accepts an empty `postgresAdminPassword` parameter (because the parameter is `@secure()` typed, not validated) and:
+
+- writes an empty string to the `postgres-admin-password` KV secret
+- composes a `Password=;...` literal into the `postgres-connection-string` KV secret
+- attempts to set the Postgres admin password to empty (Postgres Flex's RP appears to ignore this — the server keeps the previous password — but don't rely on that)
+
+How you hit this: `az keyvault secret show ... --query value -o tsv` returns the value to stdout, but on auth failure it writes the error to stderr and `$pgPass` is empty. If the script doesn't halt, the deploy proceeds with a phantom-empty password, **corrupting both KV secrets**. The currently-running Container App keeps working because it captured its env vars at start; the next container that pulls fresh KV (a new Container App revision OR a Container Apps Job execution) fails to authenticate to Postgres.
+
+`scripts/deploy-infra.ps1` now hard-throws if it can't read the password. If you ever see this corruption again:
+
+```powershell
+# Rotate the admin password to a known value and re-sync both KV secrets.
+$pw = -join (1..32 | ForEach-Object { [char]@(65..90 + 97..122 + 48..57)[(Get-Random -Maximum 62)] })
+az postgres flexible-server update -g somacore-dev-rg -n somacore-dev-pg --admin-password $pw
+az keyvault secret set --vault-name somacore-dev-kv --name postgres-admin-password --value $pw --output none
+$cs = "Host=somacore-dev-pg.postgres.database.azure.com;Port=5432;Database=somacore;Username=somacoreadmin;Password=$pw;SslMode=Require;Trust Server Certificate=true"
+az keyvault secret set --vault-name somacore-dev-kv --name postgres-connection-string --value $cs --output none
+# Restart API so it re-pulls KV.
+az containerapp revision restart -g somacore-dev-rg -n somacore-api `
+    --revision (az containerapp revision list -g somacore-dev-rg -n somacore-api --query "[?properties.active] | [0].name" -o tsv)
+# Touch each Container Apps Job so it refreshes its cached KV secrets (jobs cache at
+# the resource level, not per-execution — a benign env-var bump is enough).
+foreach ($job in @('somacore-poller','somacore-refresh-sweeper')) {
+    az containerapp job update -g somacore-dev-rg -n $job --set-env-vars "REFRESH_AT=$(Get-Date -Format o)" --output none
+}
+```
+
 ## Database migrations
 
 Run migrations against the dev DB before deploying code that depends on the new schema:

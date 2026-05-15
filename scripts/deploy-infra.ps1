@@ -28,8 +28,12 @@ $ErrorActionPreference = 'Stop'
 
 Write-Host "=== Reading current state to preserve ===" -ForegroundColor Cyan
 
-$pgPass = az keyvault secret show --vault-name $VaultName --name postgres-admin-password --query value -o tsv
-if (-not $pgPass) { throw "Couldn't read postgres-admin-password from $VaultName." }
+$pgPass = az keyvault secret show --vault-name $VaultName --name postgres-admin-password --query value -o tsv 2>&1
+if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($pgPass)) {
+    # The previous version of this script bypass-able into a deploy with an empty
+    # password because PowerShell didn't halt on the `az` failure. Force-halt now.
+    throw "Couldn't read postgres-admin-password from $VaultName (exit $LASTEXITCODE). Refusing to deploy with an empty password — that would corrupt the KV connection-string secret and break the next-started containers. Re-run `az login` first."
+}
 Write-Host "  postgres-admin-password: <length $($pgPass.Length)>"
 
 $currentImage = az containerapp show `
