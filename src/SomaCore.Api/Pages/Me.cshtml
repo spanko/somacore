@@ -110,6 +110,7 @@
                         <th>State</th>
                         <th>HRV (ms)</th>
                         <th>RHR (bpm)</th>
+                        <th>Sleep</th>
                         <th>Source</th>
                     </tr>
                 </thead>
@@ -122,6 +123,16 @@
                             <td><span class="badge @BadgeClass(r.ScoreState)">@r.ScoreState</span></td>
                             <td>@(r.HrvRmssdMilli?.ToString("F1") ?? "—")</td>
                             <td>@(r.RestingHeartRate?.ToString() ?? "—")</td>
+                            <td>
+                                @if (r.SleepStartAt.HasValue && r.SleepEndAt.HasValue)
+                                {
+                                    @MountainTime.Format(r.SleepStartAt.Value) <text> → </text> @MountainTime.Format(r.SleepEndAt.Value)
+                                }
+                                else
+                                {
+                                    <span class="subtitle">—</span>
+                                }
+                            </td>
                             <td><code>@r.IngestedVia</code></td>
                         </tr>
                     }
@@ -170,7 +181,7 @@
 
 @if (Model.IsAdmin)
 {
-    <p class="signout"><a href="/admin/users">Admin: users</a></p>
+    <p class="signout"><a href="/admin/users">Admin: users</a> · <a href="/admin/health">Admin: health</a> · <a href="/admin/backfill">Admin: backfill</a></p>
 }
 
 <p class="signout"><a href="/MicrosoftIdentity/Account/SignOut">Sign out</a></p>

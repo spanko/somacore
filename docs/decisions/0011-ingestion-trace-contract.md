@@ -1,6 +1,6 @@
 # ADR 0011 — Ingestion trace contract
 
-**Status:** Accepted (amended 2026-05 after Session 2; 2026-05 after Session 4 resolved poller open item)
+**Status:** Accepted (amended 2026-05 after Session 2; 2026-05 after Session 4 resolved poller open item; 2026-05 after Session 5 resolved backfill open item)
 **Date:** May 2026
 **Context:** Phase 2 Track A, Session 2 (introduces the first multi-handler trace shape)
 
@@ -161,11 +161,12 @@ A shared test helper (`TraceAssertions` in `tests/SomaCore.IntegrationTests/Obse
 
 - **Poller-as-trace-root shape** (resolved Session 4, 2026-05). The poller emits a separate trace root per (user, cycle) for the cycle pull, and a separate trace root per (user, workout) for each workout enumerated from `ListRecentWorkoutsAsync`. The `ingestion.trigger=poller` tag is what distinguishes poller traces from webhook traces in dashboards. The job-level (`ReconciliationPoller` invocation) does NOT itself open a root span — the root-per-entity shape keeps dashboard queries against `outcomes.*` tags uniform across triggers. `ingestion.event_type` is `cycle.pull` for cycle roots and `workout.pull` for workout roots.
 
+- **Backfill traces** (resolved Session 5, 2026-05). `WhoopBackfillService` emits one `whoop.ingestion` trace root per ingested entity (per-recovery, per-sleep, per-workout) with `ingestion.trigger=backfill`. `ingestion.event_type` is `cycle.backfill` for recovery and sleep roots and `workout.backfill` for workout roots. The backfill job itself opens no enclosing parent — same root-per-entity shape as the poller. Reasoning: a 30-day window emits ~120 root spans per user (well within ingestion budget at our scale) and keeps `outcomes.*` dashboard queries uniform across triggers. The single-job-trace alternative would have created a new top-level span shape every dashboard would have to know about specifically — exactly the fragmentation the rest of this ADR exists to prevent.
+
 ## Open items
 
 These are left for amendment once they actually surface:
 
-- **Backfill traces** (Session 5). One-off backfill scripts could either emit per-cycle ingestion traces (consistent shape, high volume) or a single backfill-job trace with per-cycle children (different shape, smaller volume). Decide when Session 5 lands.
 - **Multi-source traces** (Track C). When HealthKit and WHOOP data converge on the same rules engine invocation, the ingestion trace and the rules-engine trace will be different roots. Linking them via a shared correlation ID is out of scope for this ADR.
 
 ## References

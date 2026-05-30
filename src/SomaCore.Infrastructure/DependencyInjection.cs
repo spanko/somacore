@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
+using SomaCore.Infrastructure.Backfill;
 using SomaCore.Infrastructure.Observability;
 using SomaCore.Infrastructure.Persistence;
 using SomaCore.Infrastructure.Persistence.Interceptors;
@@ -83,6 +84,7 @@ public static class DependencyInjection
         services.AddScoped<IRecoveryIngestionHandler, RecoveryIngestionHandler>();
         services.AddScoped<IWhoopSleepIngestionHandler, WhoopSleepIngestionHandler>();
         services.AddScoped<IWhoopWorkoutIngestionHandler, WhoopWorkoutIngestionHandler>();
+        services.AddScoped<IWhoopBackfillService, WhoopBackfillService>();
 
         return services;
     }

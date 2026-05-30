@@ -41,7 +41,7 @@ public sealed class WhoopOptions
     [Url]
     public string ApiBaseUri { get; init; } = "https://api.prod.whoop.com/developer/v2";
 
-    /// <summary>Space-separated WHOOP scopes, e.g. "read:recovery read:cycles read:profile offline".</summary>
+    /// <summary>Space-separated WHOOP scopes, e.g. "read:recovery read:cycles read:sleep read:workout read:profile offline".</summary>
     [Required]
-    public string Scopes { get; init; } = "read:recovery read:cycles read:profile offline";
+    public string Scopes { get; init; } = "read:recovery read:cycles read:sleep read:workout read:profile offline";
 }

@@ -141,13 +141,21 @@ public sealed class MeModel(
         IsAdmin = adminCheck.Succeeded;
     }
 
-    private async Task<List<RecoveryViewModel>> LoadRecentAsync(Guid userId, CancellationToken ct) =>
-        await dbContext.WhoopRecoveries
+    // Recovery is joined to its underlying sleep two ways: (1) the recovery
+    // row carries the WHOOP sleep UUID when WHOOP attributed one at score
+    // time — that's the primary edge; (2) when WHOOP gave us a SCORED
+    // recovery before the sleep row landed locally (race), we fall back to
+    // a cycle-window overlap. The fallback runs only when the primary join
+    // produces no row.
+    private async Task<List<RecoveryViewModel>> LoadRecentAsync(Guid userId, CancellationToken ct)
+    {
+        var recoveries = await dbContext.WhoopRecoveries
             .AsNoTracking()
             .Where(r => r.UserId == userId)
             .OrderByDescending(r => r.CycleStartAt)
             .Take(14)
-            .Select(r => new RecoveryViewModel(
+            .Select(r => new
+            {
                 r.ScoreState,
                 r.RecoveryScore,
                 r.HrvRmssdMilli,
@@ -155,8 +163,82 @@ public sealed class MeModel(
                 r.CycleStartAt,
                 r.CycleEndAt,
                 r.IngestedVia,
-                r.IngestedAt))
+                r.IngestedAt,
+                r.WhoopSleepId,
+            })
             .ToListAsync(ct);
+
+        if (recoveries.Count == 0)
+        {
+            return new List<RecoveryViewModel>();
+        }
+
+        var sleepIds = recoveries
+            .Where(r => r.WhoopSleepId.HasValue)
+            .Select(r => r.WhoopSleepId!.Value)
+            .Distinct()
+            .ToList();
+
+        var sleepsByWhoopId = sleepIds.Count == 0
+            ? new Dictionary<Guid, (DateTimeOffset StartAt, DateTimeOffset EndAt)>()
+            : await dbContext.WhoopSleeps
+                .AsNoTracking()
+                .Where(s => s.UserId == userId && sleepIds.Contains(s.WhoopSleepId))
+                .Select(s => new { s.WhoopSleepId, s.StartAt, s.EndAt })
+                .ToDictionaryAsync(x => x.WhoopSleepId, x => (x.StartAt, x.EndAt), ct);
+
+        // Fallback: for recoveries with no WhoopSleepId, look for a sleep
+        // that starts inside the recovery cycle window. Bounded query — only
+        // runs if at least one recovery is missing a sleep id.
+        var earliest = recoveries.Min(r => r.CycleStartAt);
+        var latest   = recoveries.Max(r => r.CycleEndAt ?? r.CycleStartAt);
+
+        var cycleSleeps = recoveries.Any(r => !r.WhoopSleepId.HasValue)
+            ? await dbContext.WhoopSleeps
+                .AsNoTracking()
+                .Where(s => s.UserId == userId
+                         && !s.Nap
+                         && s.StartAt >= earliest
+                         && s.StartAt <= latest)
+                .Select(s => new { s.StartAt, s.EndAt })
+                .ToListAsync(ct)
+            : new();
+
+        return recoveries.Select(r =>
+        {
+            DateTimeOffset? sleepStart = null;
+            DateTimeOffset? sleepEnd   = null;
+
+            if (r.WhoopSleepId.HasValue
+                && sleepsByWhoopId.TryGetValue(r.WhoopSleepId.Value, out var match))
+            {
+                sleepStart = match.StartAt;
+                sleepEnd   = match.EndAt;
+            }
+            else if (r.CycleEndAt is DateTimeOffset cycleEnd)
+            {
+                var fallback = cycleSleeps.FirstOrDefault(
+                    s => s.StartAt >= r.CycleStartAt && s.StartAt <= cycleEnd);
+                if (fallback is not null)
+                {
+                    sleepStart = fallback.StartAt;
+                    sleepEnd   = fallback.EndAt;
+                }
+            }
+
+            return new RecoveryViewModel(
+                r.ScoreState,
+                r.RecoveryScore,
+                r.HrvRmssdMilli,
+                r.RestingHeartRate,
+                r.CycleStartAt,
+                r.CycleEndAt,
+                r.IngestedVia,
+                r.IngestedAt,
+                sleepStart,
+                sleepEnd);
+        }).ToList();
+    }
 
     private async Task TriggerOnOpenPullAsync(Guid connectionId, CancellationToken ct)
     {
@@ -191,5 +273,7 @@ public sealed class MeModel(
         DateTimeOffset CycleStartAt,
         DateTimeOffset? CycleEndAt,
         string IngestedVia,
-        DateTimeOffset IngestedAt);
+        DateTimeOffset IngestedAt,
+        DateTimeOffset? SleepStartAt,
+        DateTimeOffset? SleepEndAt);
 }
