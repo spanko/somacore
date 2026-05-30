@@ -112,6 +112,7 @@ tests/
 3. **The webhook handler has both:** a unit test for HMAC validation logic, an integration test for the full flow.
 4. **Don't mock what you don't own** unless you must. Prefer testing real implementations behind a port.
 5. **Test names describe behavior**, not method names. `Should_reject_webhook_when_signature_is_invalid` not `TestVerifySignature1`.
+6. **Trace-capturing tests must opt into the non-parallel collection.** xUnit's default parallel-across-classes execution lets `TraceAssertions.Capture()` listeners observe spans from concurrently-running tests in other classes. Any test class that calls `TraceAssertions.Capture()` MUST be annotated `[Collection(nameof(TracingCollection))]` — see [tests/SomaCore.IntegrationTests/Observability/TracingCollection.cs](../tests/SomaCore.IntegrationTests/Observability/TracingCollection.cs). Tests outside this collection still run in parallel. Cost: ~30s added to the integration test run; eliminates the flakiness entirely. Discovered Session 4, codified Session 4.5.
 
 ## Git and PRs
 

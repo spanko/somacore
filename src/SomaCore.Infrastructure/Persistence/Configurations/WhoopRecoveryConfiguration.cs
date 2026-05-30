@@ -16,7 +16,7 @@ public sealed class WhoopRecoveryConfiguration : IEntityTypeConfiguration<WhoopR
                 "score_state IN ('SCORED', 'PENDING_SCORE', 'UNSCORABLE')");
             t.HasCheckConstraint(
                 "chk_whoop_recoveries_ingested_via",
-                "ingested_via IN ('webhook', 'poller', 'on_open_pull')");
+                "ingested_via IN ('webhook', 'poller', 'on_open_pull', 'backfill')");
             t.HasCheckConstraint(
                 "chk_whoop_recoveries_score_range",
                 "recovery_score IS NULL OR (recovery_score BETWEEN 0 AND 100)");
@@ -37,8 +37,10 @@ public sealed class WhoopRecoveryConfiguration : IEntityTypeConfiguration<WhoopR
         builder.Property(r => r.UserId)
             .IsRequired();
 
-        builder.Property(r => r.ExternalConnectionId)
-            .IsRequired();
+        // Nullable: when a user disconnects WHOOP we delete the
+        // external_connections row but preserve their historical recoveries.
+        // The FK below uses ON DELETE SET NULL.
+        builder.Property(r => r.ExternalConnectionId);
 
         builder.Property(r => r.WhoopCycleId)
             .IsRequired();
@@ -91,7 +93,11 @@ public sealed class WhoopRecoveryConfiguration : IEntityTypeConfiguration<WhoopR
         builder.HasOne(r => r.ExternalConnection)
             .WithMany(c => c.WhoopRecoveries)
             .HasForeignKey(r => r.ExternalConnectionId)
-            .OnDelete(DeleteBehavior.Cascade);
+            // SET NULL: deleting a connection (user disconnect) does NOT delete
+            // the user's recovery history. The recovery rows are tied to the
+            // user via UserId (which is still cascade-deleted on full account
+            // deletion); the connection relationship is intentionally severable.
+            .OnDelete(DeleteBehavior.SetNull);
 
         // Idempotency / dedupe: one row per (connection, cycle).
         builder.HasIndex(r => new { r.ExternalConnectionId, r.WhoopCycleId })

@@ -20,6 +20,9 @@ public sealed class ExternalConnectionConfiguration : IEntityTypeConfiguration<E
             t.HasCheckConstraint(
                 "chk_external_connections_kv_secret_name_not_empty",
                 "length(key_vault_secret_name) > 0");
+            t.HasCheckConstraint(
+                "chk_external_connections_last_poll_outcome",
+                "last_poll_outcome IS NULL OR last_poll_outcome IN ('Skipped', 'Polled', 'Failed')");
         });
 
         builder.HasKey(c => c.Id);
@@ -52,6 +55,9 @@ public sealed class ExternalConnectionConfiguration : IEntityTypeConfiguration<E
             .HasDefaultValue(0);
 
         builder.Property(c => c.LastRefreshError);
+
+        builder.Property(c => c.LastPolledAt);
+        builder.Property(c => c.LastPollOutcome);
 
         builder.Property(c => c.ConnectionMetadata)
             .HasColumnType("jsonb")

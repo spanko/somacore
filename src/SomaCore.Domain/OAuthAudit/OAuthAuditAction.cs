@@ -9,6 +9,8 @@ public static class OAuthAuditAction
     public const string TokenRefreshFailed = "token_refresh_failed";
     public const string RevokeDetected = "revoke_detected";
     public const string ManualDisconnect = "manual_disconnect";
+    /// <summary>Session 5 — admin-triggered historical backfill run for a connection.</summary>
+    public const string Backfill = "backfill";
 
     public static IReadOnlyCollection<string> All { get; } = new[]
     {
@@ -19,5 +21,6 @@ public static class OAuthAuditAction
         TokenRefreshFailed,
         RevokeDetected,
         ManualDisconnect,
+        Backfill,
     };
 }

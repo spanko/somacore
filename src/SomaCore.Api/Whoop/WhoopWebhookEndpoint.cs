@@ -75,8 +75,9 @@ public static class WhoopWebhookEndpoint
             return Results.BadRequest("Missing required fields.");
         }
 
-        // Phase 1 only acts on recovery events; anything else gets a 200 + 'discarded' row.
-        var status = envelope.EventType.Equals("recovery.updated", StringComparison.OrdinalIgnoreCase)
+        // Phase-2 Track A: accept recovery + sleep cycle events plus workout
+        // events. Any other WHOOP event type still gets discarded.
+        var status = IsSupportedEventType(envelope.EventType)
             ? WebhookEventStatus.Received
             : WebhookEventStatus.Discarded;
 
@@ -133,4 +134,9 @@ public static class WhoopWebhookEndpoint
 
     private static bool IsUniqueViolation(DbUpdateException ex)
         => ex.InnerException is Npgsql.PostgresException pg && pg.SqlState == "23505";
+
+    private static bool IsSupportedEventType(string eventType)
+        => eventType.Equals("recovery.updated", StringComparison.OrdinalIgnoreCase)
+        || eventType.Equals("sleep.updated", StringComparison.OrdinalIgnoreCase)
+        || eventType.Equals("workout.updated", StringComparison.OrdinalIgnoreCase);
 }

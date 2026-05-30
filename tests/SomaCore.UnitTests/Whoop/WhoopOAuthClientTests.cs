@@ -97,12 +97,53 @@ public class WhoopOAuthClientTests
         await act.Should().ThrowAsync<HttpRequestException>();
     }
 
+    [Fact]
+    public async Task Revoke_should_succeed_on_204_no_content()
+    {
+        var (client, handler) = NewClient();
+        handler.Reply(HttpStatusCode.NoContent, "");
+
+        var result = await client.RevokeAccessAsync("the-access-token", CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().BeTrue();
+        handler.LastRequest!.Method.Should().Be(HttpMethod.Delete);
+        handler.LastRequest.RequestUri!.AbsoluteUri
+            .Should().Be("https://api.prod.whoop.com/developer/v2/user/access");
+        handler.LastRequest.Headers.Authorization!.Scheme.Should().Be("Bearer");
+        handler.LastRequest.Headers.Authorization.Parameter.Should().Be("the-access-token");
+    }
+
+    [Fact]
+    public async Task Revoke_should_return_failure_on_4xx_without_throwing()
+    {
+        var (client, handler) = NewClient();
+        handler.Reply(HttpStatusCode.Unauthorized, """{"error":"invalid_token"}""");
+
+        var result = await client.RevokeAccessAsync("stale-token", CancellationToken.None);
+
+        result.IsSuccess.Should().BeFalse();
+        result.Error.Should().Contain("401");
+    }
+
+    [Fact]
+    public async Task Revoke_should_throw_on_5xx()
+    {
+        var (client, handler) = NewClient();
+        handler.Reply(HttpStatusCode.BadGateway, "");
+
+        var act = () => client.RevokeAccessAsync("the-access-token", CancellationToken.None);
+
+        await act.Should().ThrowAsync<HttpRequestException>();
+    }
+
     private sealed class StubHandler : HttpMessageHandler
     {
         private HttpStatusCode _status = HttpStatusCode.OK;
         private string _body = "";
 
         public string? LastRequestBody { get; private set; }
+        public HttpRequestMessage? LastRequest { get; private set; }
 
         public void Reply(HttpStatusCode status, string body)
         {
@@ -114,6 +155,7 @@ public class WhoopOAuthClientTests
             HttpRequestMessage request,
             CancellationToken cancellationToken)
         {
+            LastRequest = request;
             if (request.Content is not null)
             {
                 LastRequestBody = await request.Content.ReadAsStringAsync(cancellationToken);

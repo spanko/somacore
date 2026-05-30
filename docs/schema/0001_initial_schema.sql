@@ -186,7 +186,11 @@ CREATE INDEX idx_external_connections_user_id
 CREATE TABLE whoop_recoveries (
     id                          uuid PRIMARY KEY,           -- UUID v7
     user_id                     uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    external_connection_id      uuid NOT NULL REFERENCES external_connections(id) ON DELETE CASCADE,
+    -- ON DELETE SET NULL: when a user disconnects WHOOP we delete the
+    -- external_connections row but preserve their historical recoveries.
+    -- Recovery rows survive disconnection; they only cascade-delete on full
+    -- account deletion via the user_id FK above.
+    external_connection_id      uuid REFERENCES external_connections(id) ON DELETE SET NULL,
 
     -- Natural keys from WHOOP.
     whoop_cycle_id              bigint NOT NULL,            -- WHOOP cycle this recovery belongs to.

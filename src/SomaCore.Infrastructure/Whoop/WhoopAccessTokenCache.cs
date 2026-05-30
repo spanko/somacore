@@ -88,9 +88,45 @@ public sealed class WhoopAccessTokenCache(
                 $"Refresh token secret '{connection.KeyVaultSecretName}' is missing or empty.");
         }
 
-        var refreshResult = await whoop.RefreshTokenAsync(refreshToken, cancellationToken);
+        Result<WhoopTokenResponse> refreshResult;
+        try
+        {
+            refreshResult = await whoop.RefreshTokenAsync(refreshToken, cancellationToken);
+        }
+        catch (Exception ex) when (
+            ex is HttpRequestException
+            || ex is TaskCanceledException tce && !cancellationToken.IsCancellationRequested && tce.InnerException is TimeoutException
+            || ex is TimeoutException)
+        {
+            // ┌─────────────────────────────────────────────────────────────────┐
+            // │ Refresh failure mode: TRANSIENT.                                 │
+            // │ WHOOP unreachable, 5xx, network/timeout. The refresh token is    │
+            // │ still presumed valid — retry on the next sweep (every 30 min).   │
+            // │ Do NOT flip status, do NOT increment refresh_failure_count.      │
+            // │ The /me banner only kicks in for permanent failures, which keeps │
+            // │ a temporary WHOOP outage from telling the user to reconnect.     │
+            // └─────────────────────────────────────────────────────────────────┘
+            logger.LogWarning(ex,
+                "Transient refresh failure for connection {ConnectionId} — leaving status as-is",
+                externalConnectionId);
+            return Result<string>.Failure($"Transient WHOOP refresh failure: {ex.Message}");
+        }
+
         if (!refreshResult.IsSuccess)
         {
+            // ┌─────────────────────────────────────────────────────────────────┐
+            // │ Refresh failure mode: PERMANENT.                                 │
+            // │ WHOOP returned a 4xx (invalid_grant, expired refresh, revoked    │
+            // │ on WHOOP's side, etc.). The current refresh token will never    │
+            // │ succeed again — the user must re-authorize.                      │
+            // │ Flip status to refresh_failed so /me renders the Reconnect       │
+            // │ banner; the sweeper will keep no-op'ing on this row until the   │
+            // │ user completes a fresh OAuth flow.                               │
+            // │                                                                  │
+            // │ This branch only fires for 4xx because WhoopOAuthClient throws   │
+            // │ HttpRequestException on 5xx (handled in the catch above) and    │
+            // │ returns Result.Failure only after seeing a 4xx response.        │
+            // └─────────────────────────────────────────────────────────────────┘
             connection.RefreshFailureCount += 1;
             connection.LastRefreshError = refreshResult.Error?.Length > 500
                 ? refreshResult.Error[..500]
@@ -98,7 +134,7 @@ public sealed class WhoopAccessTokenCache(
             connection.Status = ConnectionStatus.RefreshFailed;
             await dbContext.SaveChangesAsync(cancellationToken);
             logger.LogWarning(
-                "Refresh failed for connection {ConnectionId}: {Error}",
+                "Permanent refresh failure for connection {ConnectionId}: {Error}",
                 externalConnectionId,
                 refreshResult.Error);
             return Result<string>.Failure(refreshResult.Error!);

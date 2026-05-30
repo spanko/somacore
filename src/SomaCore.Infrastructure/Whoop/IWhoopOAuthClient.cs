@@ -15,4 +15,13 @@ public interface IWhoopOAuthClient
 
     /// <summary>Fetch the basic profile for the user behind the access token.</summary>
     Task<Result<WhoopBasicProfile>> GetBasicProfileAsync(string accessToken, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Revoke the user's OAuth grant at WHOOP via
+    /// <c>DELETE /developer/v2/user/access</c> with the user's current access
+    /// token as Bearer auth. WHOOP returns 204 on success. This is the
+    /// public side of disconnect — callers should treat failure as best-effort
+    /// and proceed with local teardown regardless.
+    /// </summary>
+    Task<Result<bool>> RevokeAccessAsync(string accessToken, CancellationToken cancellationToken);
 }

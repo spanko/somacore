@@ -14,6 +14,14 @@
     <p class="banner">@Model.WhoopBanner</p>
 }
 
+@if (Model.WhoopRefreshFailed)
+{
+    <div class="banner-warning" role="alert">
+        <span class="banner-text">Your WHOOP connection needs to be refreshed.</span>
+        <a class="btn" href="/auth/whoop/start">Reconnect WHOOP</a>
+    </div>
+}
+
 @if (Model.ForcedOnOpenPull)
 {
     <p class="banner">Forced on-open pull triggered (<code>?force=true</code>). Check the latest recovery's <em>Provenance</em> for <code>ingested_via = on_open_pull</code>.</p>
@@ -121,6 +129,13 @@
             </table>
         </div>
     </section>
+}
+
+@if (Model.WhoopConnected)
+{
+    <form method="post" action="/auth/whoop/disconnect" class="disconnect-form">
+        <button type="submit" class="btn-link-danger">Disconnect WHOOP</button>
+    </form>
 }
 
 @if (Model.LatestRecovery is not null)

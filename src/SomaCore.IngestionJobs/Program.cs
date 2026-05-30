@@ -1,11 +1,16 @@
+using Azure.Monitor.OpenTelemetry.Exporter;
+
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+
+using OpenTelemetry.Trace;
 
 using Serilog;
 using Serilog.Formatting.Compact;
 
 using SomaCore.Infrastructure;
+using SomaCore.Infrastructure.Observability;
 using SomaCore.IngestionJobs.Jobs;
 
 var jobName = ParseJobArg(args);
@@ -32,6 +37,19 @@ var connectionString = builder.Configuration.GetConnectionString("Postgres")
 builder.Services.AddSomaCoreInfrastructure(connectionString);
 builder.Services.AddSomaCoreKeyVault(builder.Configuration);
 builder.Services.AddSomaCoreWhoop(builder.Configuration);
+builder.Services.AddSomaCoreTelemetry(builder.Configuration);
+
+// Application Insights exporter for the ingestion trace contract (ADR 0011).
+// Mirrors the Api Program.cs pattern: opt-in via configuration, only enables
+// the exporter when a connection string is set. The ActivitySource is
+// registered transitively by AddSomaCoreTelemetry; tests in-process can still
+// observe spans via an ActivityListener even when no exporter is wired.
+var aiConnectionString = builder.Configuration[$"{TelemetryOptions.SectionName}:ApplicationInsightsConnectionString"];
+if (!string.IsNullOrWhiteSpace(aiConnectionString))
+{
+    builder.Services.AddOpenTelemetry()
+        .WithTracing(t => t.AddAzureMonitorTraceExporter(o => o.ConnectionString = aiConnectionString));
+}
 
 builder.Services.AddScoped<JobDispatcher>();
 builder.Services.AddScoped<IJob, ReconciliationPoller>();

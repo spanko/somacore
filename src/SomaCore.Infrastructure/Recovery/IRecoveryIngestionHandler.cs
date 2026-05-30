@@ -1,4 +1,5 @@
 using SomaCore.Domain.Common;
+using SomaCore.Infrastructure.Whoop;
 
 namespace SomaCore.Infrastructure.Recovery;
 
@@ -12,6 +13,23 @@ public interface IRecoveryIngestionHandler
 {
     Task<Result<RecoveryIngestionOutcome>> IngestAsync(
         RecoveryIngestionRequest request,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Session 5 backfill bypass: ingest from a recovery payload + cycle
+    /// window the caller already has (typically from
+    /// <see cref="IWhoopApiClient.ListRecentRecoveriesAsync"/> + a single
+    /// <see cref="IWhoopApiClient.GetCycleAsync"/> for the window times).
+    /// Skips the recovery-by-cycle fetch. Same upsert semantics, same
+    /// outcome vocabulary, same trace contract (handler span only).
+    /// Per ADR 0011 Session 5 resolution.
+    /// </summary>
+    Task<Result<RecoveryIngestionOutcome>> UpsertFromPayloadAsync(
+        Guid externalConnectionId,
+        string ingestedVia,
+        WhoopRecoveryPayload payload,
+        WhoopCyclePayload cycle,
+        string? upstreamTraceId,
         CancellationToken cancellationToken);
 }
 

@@ -19,6 +19,7 @@
     <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" />
     <PackageReference Include="Microsoft.Extensions.Options.DataAnnotations" />
     <PackageReference Include="Microsoft.AspNetCore.DataProtection.Abstractions" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
   </ItemGroup>
 
 </Project>

@@ -28,6 +28,14 @@ public sealed class WhoopOptions
     [Url]
     public string ProfileUri { get; init; } = "https://api.prod.whoop.com/developer/v2/user/profile/basic";
 
+    /// <summary>
+    /// revokeUserOAuthAccess — DELETE on this URL with the user's current access
+    /// token revokes their OAuth grant at WHOOP. WHOOP returns 204 on success.
+    /// </summary>
+    [Required]
+    [Url]
+    public string RevokeUri { get; init; } = "https://api.prod.whoop.com/developer/v2/user/access";
+
     /// <summary>Base URL for v2 user-data endpoints (cycles, recoveries).</summary>
     [Required]
     [Url]

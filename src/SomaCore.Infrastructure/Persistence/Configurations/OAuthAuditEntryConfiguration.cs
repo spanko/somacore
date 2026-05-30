@@ -16,7 +16,7 @@ public sealed class OAuthAuditEntryConfiguration : IEntityTypeConfiguration<OAut
                 "source IN ('whoop', 'oura', 'strava', 'apple_health')");
             t.HasCheckConstraint(
                 "chk_oauth_audit_action",
-                "action IN ('authorize', 'callback_success', 'callback_failed', 'token_refresh_success', 'token_refresh_failed', 'revoke_detected', 'manual_disconnect')");
+                "action IN ('authorize', 'callback_success', 'callback_failed', 'token_refresh_success', 'token_refresh_failed', 'revoke_detected', 'manual_disconnect', 'backfill')");
         });
 
         builder.HasKey(a => a.Id);

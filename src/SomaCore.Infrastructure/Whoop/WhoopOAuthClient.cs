@@ -83,6 +83,28 @@ public sealed class WhoopOAuthClient(
             : Result<WhoopBasicProfile>.Success(profile);
     }
 
+    public async Task<Result<bool>> RevokeAccessAsync(
+        string accessToken,
+        CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Delete, _options.RevokeUri);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+        using var response = await httpClient.SendAsync(request, cancellationToken);
+
+        // 204 No Content on success per developer.whoop.com.
+        if (response.IsSuccessStatusCode)
+        {
+            return Result<bool>.Success(true);
+        }
+
+        // FailureFromResponseAsync throws on 5xx and returns Result.Failure on
+        // 4xx — same semantics as the rest of the client. The caller of revoke
+        // treats either outcome as "best-effort failed" and proceeds with the
+        // local teardown anyway.
+        return await FailureFromResponseAsync<bool>(response, "revoke", cancellationToken);
+    }
+
     private async Task<Result<WhoopTokenResponse>> PostTokenAsync(
         Dictionary<string, string> form,
         string operation,

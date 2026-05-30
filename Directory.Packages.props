@@ -21,6 +21,16 @@
     <PackageVersion Include="Serilog.Formatting.Compact" Version="3.0.0" />
   </ItemGroup>
 
+  <ItemGroup Label="Telemetry (OpenTelemetry + Application Insights)">
+    <!-- ADR 0011 ingestion trace contract. Custom ActivitySource "SomaCore.Ingestion".
+         Auto-instrumentation packages are deliberately NOT added yet — the
+         contract only needs the custom source, and auto-instrumentation would
+         add noise to TraceAssertions-based span-shape tests. Revisit when
+         end-to-end HTTP/EF tracing becomes a separate need. -->
+    <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.10.0" />
+    <PackageVersion Include="Azure.Monitor.OpenTelemetry.Exporter" Version="1.3.0" />
+  </ItemGroup>
+
   <ItemGroup Label="Hosting / configuration">
     <PackageVersion Include="Microsoft.Extensions.Configuration.UserSecrets" Version="9.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="9.0.0" />
