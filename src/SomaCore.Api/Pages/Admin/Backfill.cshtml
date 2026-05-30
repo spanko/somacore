@@ -1,0 +1,92 @@
+@page "/admin/backfill"
+@model SomaCore.Api.Pages.Admin.BackfillModel
+@using SomaCore.Api.Time
+@{
+    ViewData["Title"] = "/admin/backfill";
+}
+
+<h1>Backfill</h1>
+<p class="subtitle">On-demand historical pull for one WHOOP connection. snapshot @MountainTime.Format(Model.GeneratedAt)</p>
+
+<section class="card">
+    <h2>Run backfill</h2>
+    @if (Model.Connections.Count == 0)
+    {
+        <p class="subtitle">No active WHOOP connections.</p>
+    }
+    else
+    {
+        <form method="post">
+            <div asp-validation-summary="ModelOnly" class="banner-warning"></div>
+
+            <dl class="metrics">
+                <dt><label asp-for="SelectedConnectionId">Connection</label></dt>
+                <dd>
+                    <select asp-for="SelectedConnectionId">
+                        <option value="">— pick one —</option>
+                        @foreach (var c in Model.Connections)
+                        {
+                            <option value="@c.ConnectionId">@c.Email (@(c.DisplayName ?? "—"))</option>
+                        }
+                    </select>
+                    <span asp-validation-for="SelectedConnectionId"></span>
+                </dd>
+                <dt><label asp-for="Days">Days back</label></dt>
+                <dd>
+                    <input asp-for="Days" type="number" min="1" max="@SomaCore.Api.Pages.Admin.BackfillModel.MaxDays" />
+                    <span asp-validation-for="Days"></span>
+                    <span class="hint-text">Paginates each list endpoint, upserts via the handler bypass. Idempotent — safe to re-run over the same window.</span>
+                </dd>
+            </dl>
+
+            <button type="submit" class="btn">Run backfill</button>
+        </form>
+    }
+</section>
+
+@if (Model.LastError is not null)
+{
+    <section class="card">
+        <h2>Last run · failed</h2>
+        <p>
+            <span class="badge badge-unscorable">FAILED</span>
+            for <code>@(Model.LastTarget?.Email ?? "—")</code>
+            window <code>@MountainTime.Format(Model.LastStart) → @MountainTime.Format(Model.LastEnd)</code>
+        </p>
+        <pre>@Model.LastError</pre>
+    </section>
+}
+else if (Model.LastSummary is not null)
+{
+    var s = Model.LastSummary;
+    <section class="card">
+        <h2>Last run · summary</h2>
+        <p>
+            <span class="badge badge-scored">OK</span>
+            for <code>@(Model.LastTarget?.Email ?? "—")</code>
+            window <code>@MountainTime.Format(Model.LastStart) → @MountainTime.Format(Model.LastEnd)</code>
+            in <strong>@((int)s.Duration.TotalMilliseconds) ms</strong>
+        </p>
+        <div class="admin-table-wrap">
+            <table class="admin-table">
+                <thead>
+                    <tr><th>Entity</th><th>Inserted</th><th>Updated</th><th>NoOp</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>recoveries</td><td>@s.RecoveriesInserted</td><td>@s.RecoveriesUpdated</td><td>@s.RecoveriesNoOp</td></tr>
+                    <tr><td>sleeps</td><td>@s.SleepsInserted</td><td>@s.SleepsUpdated</td><td>@s.SleepsNoOp</td></tr>
+                    <tr><td>workouts</td><td>@s.WorkoutsInserted</td><td>@s.WorkoutsUpdated</td><td>@s.WorkoutsNoOp</td></tr>
+                </tbody>
+            </table>
+        </div>
+        @if (s.FailedEntities > 0)
+        {
+            <p>
+                <span class="badge badge-unscorable">@s.FailedEntities</span> entities failed.
+                First error: <code>@(s.FirstError ?? "—")</code>
+            </p>
+        }
+    </section>
+}
+
+<p class="signout"><a href="/me">← back to /me</a> · <a href="/admin/users">Admin: users</a> · <a href="/admin/health">Admin: health</a></p>
