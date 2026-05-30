@@ -49,6 +49,14 @@ namespace SomaCore.Infrastructure.Persistence.Migrations
                         .HasColumnType("text")
                         .HasColumnName("key_vault_secret_name");
 
+                    b.Property<string>("LastPollOutcome")
+                        .HasColumnType("text")
+                        .HasColumnName("last_poll_outcome");
+
+                    b.Property<DateTimeOffset?>("LastPolledAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_polled_at");
+
                     b.Property<DateTimeOffset?>("LastRefreshAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("last_refresh_at");
@@ -112,6 +120,8 @@ namespace SomaCore.Infrastructure.Persistence.Migrations
                     b.ToTable("external_connections", null, t =>
                         {
                             t.HasCheckConstraint("chk_external_connections_kv_secret_name_not_empty", "length(key_vault_secret_name) > 0");
+
+                            t.HasCheckConstraint("chk_external_connections_last_poll_outcome", "last_poll_outcome IS NULL OR last_poll_outcome IN ('Skipped', 'Polled', 'Failed')");
 
                             t.HasCheckConstraint("chk_external_connections_source", "source IN ('whoop', 'oura', 'strava', 'apple_health', 'manual')");
 
@@ -234,7 +244,7 @@ namespace SomaCore.Infrastructure.Persistence.Migrations
 
                     b.ToTable("oauth_audit", null, t =>
                         {
-                            t.HasCheckConstraint("chk_oauth_audit_action", "action IN ('authorize', 'callback_success', 'callback_failed', 'token_refresh_success', 'token_refresh_failed', 'revoke_detected', 'manual_disconnect')");
+                            t.HasCheckConstraint("chk_oauth_audit_action", "action IN ('authorize', 'callback_success', 'callback_failed', 'token_refresh_success', 'token_refresh_failed', 'revoke_detected', 'manual_disconnect', 'backfill')");
 
                             t.HasCheckConstraint("chk_oauth_audit_source", "source IN ('whoop', 'oura', 'strava', 'apple_health')");
                         });
@@ -434,7 +444,7 @@ namespace SomaCore.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("cycle_start_at");
 
-                    b.Property<Guid>("ExternalConnectionId")
+                    b.Property<Guid?>("ExternalConnectionId")
                         .HasColumnType("uuid")
                         .HasColumnName("external_connection_id");
 
@@ -517,7 +527,7 @@ namespace SomaCore.Infrastructure.Persistence.Migrations
 
                     b.ToTable("whoop_recoveries", null, t =>
                         {
-                            t.HasCheckConstraint("chk_whoop_recoveries_ingested_via", "ingested_via IN ('webhook', 'poller', 'on_open_pull')");
+                            t.HasCheckConstraint("chk_whoop_recoveries_ingested_via", "ingested_via IN ('webhook', 'poller', 'on_open_pull', 'backfill')");
 
                             t.HasCheckConstraint("chk_whoop_recoveries_score_range", "recovery_score IS NULL OR (recovery_score BETWEEN 0 AND 100)");
 
@@ -526,6 +536,244 @@ namespace SomaCore.Infrastructure.Persistence.Migrations
                             t.HasCheckConstraint("chk_whoop_recoveries_scored_has_score", "(score_state = 'SCORED' AND recovery_score IS NOT NULL) OR (score_state IN ('PENDING_SCORE', 'UNSCORABLE'))");
 
                             t.HasCheckConstraint("chk_whoop_recoveries_spo2_range", "spo2_percentage IS NULL OR (spo2_percentage BETWEEN 0 AND 100)");
+                        });
+                });
+
+            modelBuilder.Entity("SomaCore.Domain.WhoopSleeps.WhoopSleep", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<DateTimeOffset>("EndAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("end_at");
+
+                    b.Property<Guid?>("ExternalConnectionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("external_connection_id");
+
+                    b.Property<DateTimeOffset>("IngestedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ingested_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<string>("IngestedVia")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("ingested_via");
+
+                    b.Property<bool>("Nap")
+                        .HasColumnType("boolean")
+                        .HasColumnName("nap");
+
+                    b.Property<JsonDocument>("RawPayload")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("raw_payload");
+
+                    b.Property<JsonDocument>("Score")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("score");
+
+                    b.Property<string>("ScoreState")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("score_state");
+
+                    b.Property<decimal?>("SleepConsistencyPercentage")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasColumnName("sleep_consistency_percentage");
+
+                    b.Property<decimal?>("SleepEfficiencyPercentage")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasColumnName("sleep_efficiency_percentage");
+
+                    b.Property<decimal?>("SleepPerformancePercentage")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasColumnName("sleep_performance_percentage");
+
+                    b.Property<DateTimeOffset>("StartAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("start_at");
+
+                    b.Property<string>("TimezoneOffset")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("timezone_offset");
+
+                    b.Property<long?>("TotalInBedTimeMilli")
+                        .HasColumnType("bigint")
+                        .HasColumnName("total_in_bed_time_milli");
+
+                    b.Property<long?>("TotalSleepTimeMilli")
+                        .HasColumnType("bigint")
+                        .HasColumnName("total_sleep_time_milli");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.Property<Guid>("WhoopSleepId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("whoop_sleep_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_whoop_sleeps");
+
+                    b.HasIndex("ExternalConnectionId", "WhoopSleepId")
+                        .IsUnique()
+                        .HasDatabaseName("idx_whoop_sleeps_connection_sleep");
+
+                    b.HasIndex("UserId", "StartAt")
+                        .IsDescending(false, true)
+                        .HasDatabaseName("idx_whoop_sleeps_user_start");
+
+                    b.ToTable("whoop_sleeps", null, t =>
+                        {
+                            t.HasCheckConstraint("chk_whoop_sleeps_cons_range", "sleep_consistency_percentage IS NULL OR (sleep_consistency_percentage BETWEEN 0 AND 100)");
+
+                            t.HasCheckConstraint("chk_whoop_sleeps_eff_range", "sleep_efficiency_percentage IS NULL OR (sleep_efficiency_percentage BETWEEN 0 AND 100)");
+
+                            t.HasCheckConstraint("chk_whoop_sleeps_ingested_via", "ingested_via IN ('webhook', 'poller', 'on_open_pull', 'backfill')");
+
+                            t.HasCheckConstraint("chk_whoop_sleeps_perf_range", "sleep_performance_percentage IS NULL OR (sleep_performance_percentage BETWEEN 0 AND 100)");
+
+                            t.HasCheckConstraint("chk_whoop_sleeps_score_state", "score_state IN ('SCORED', 'PENDING_SCORE', 'UNSCORABLE')");
+                        });
+                });
+
+            modelBuilder.Entity("SomaCore.Domain.WhoopWorkouts.WhoopWorkout", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int?>("AverageHeartRate")
+                        .HasColumnType("integer")
+                        .HasColumnName("average_heart_rate");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<DateTimeOffset>("EndAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("end_at");
+
+                    b.Property<Guid?>("ExternalConnectionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("external_connection_id");
+
+                    b.Property<DateTimeOffset>("IngestedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ingested_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<string>("IngestedVia")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("ingested_via");
+
+                    b.Property<decimal?>("Kilojoule")
+                        .HasPrecision(10, 4)
+                        .HasColumnType("numeric(10,4)")
+                        .HasColumnName("kilojoule");
+
+                    b.Property<int?>("MaxHeartRate")
+                        .HasColumnType("integer")
+                        .HasColumnName("max_heart_rate");
+
+                    b.Property<JsonDocument>("RawPayload")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("raw_payload");
+
+                    b.Property<JsonDocument>("Score")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("score");
+
+                    b.Property<string>("ScoreState")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("score_state");
+
+                    b.Property<string>("SportName")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("sport_name");
+
+                    b.Property<DateTimeOffset>("StartAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("start_at");
+
+                    b.Property<decimal?>("Strain")
+                        .HasPrecision(6, 4)
+                        .HasColumnType("numeric(6,4)")
+                        .HasColumnName("strain");
+
+                    b.Property<string>("TimezoneOffset")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("timezone_offset");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.Property<Guid>("WhoopWorkoutId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("whoop_workout_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_whoop_workouts");
+
+                    b.HasIndex("ExternalConnectionId", "WhoopWorkoutId")
+                        .IsUnique()
+                        .HasDatabaseName("idx_whoop_workouts_connection_workout");
+
+                    b.HasIndex("UserId", "StartAt")
+                        .IsDescending(false, true)
+                        .HasDatabaseName("idx_whoop_workouts_user_start");
+
+                    b.ToTable("whoop_workouts", null, t =>
+                        {
+                            t.HasCheckConstraint("chk_whoop_workouts_avg_hr_range", "average_heart_rate IS NULL OR (average_heart_rate BETWEEN 0 AND 300)");
+
+                            t.HasCheckConstraint("chk_whoop_workouts_ingested_via", "ingested_via IN ('webhook', 'poller', 'on_open_pull', 'backfill')");
+
+                            t.HasCheckConstraint("chk_whoop_workouts_max_hr_range", "max_heart_rate IS NULL OR (max_heart_rate BETWEEN 0 AND 300)");
+
+                            t.HasCheckConstraint("chk_whoop_workouts_score_state", "score_state IN ('SCORED', 'PENDING_SCORE', 'UNSCORABLE')");
+
+                            t.HasCheckConstraint("chk_whoop_workouts_strain_range", "strain IS NULL OR (strain BETWEEN 0 AND 21)");
                         });
                 });
 
@@ -584,8 +832,7 @@ namespace SomaCore.Infrastructure.Persistence.Migrations
                     b.HasOne("SomaCore.Domain.ExternalConnections.ExternalConnection", "ExternalConnection")
                         .WithMany("WhoopRecoveries")
                         .HasForeignKey("ExternalConnectionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
+                        .OnDelete(DeleteBehavior.SetNull)
                         .HasConstraintName("fk_whoop_recoveries_external_connections_external_connection_id");
 
                     b.HasOne("SomaCore.Domain.Users.User", "User")
@@ -594,6 +841,46 @@ namespace SomaCore.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_whoop_recoveries_users_user_id");
+
+                    b.Navigation("ExternalConnection");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("SomaCore.Domain.WhoopSleeps.WhoopSleep", b =>
+                {
+                    b.HasOne("SomaCore.Domain.ExternalConnections.ExternalConnection", "ExternalConnection")
+                        .WithMany()
+                        .HasForeignKey("ExternalConnectionId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_whoop_sleeps_external_connections_external_connection_id");
+
+                    b.HasOne("SomaCore.Domain.Users.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_whoop_sleeps_users_user_id");
+
+                    b.Navigation("ExternalConnection");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("SomaCore.Domain.WhoopWorkouts.WhoopWorkout", b =>
+                {
+                    b.HasOne("SomaCore.Domain.ExternalConnections.ExternalConnection", "ExternalConnection")
+                        .WithMany()
+                        .HasForeignKey("ExternalConnectionId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_whoop_workouts_external_connections_external_connection_id");
+
+                    b.HasOne("SomaCore.Domain.Users.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_whoop_workouts_users_user_id");
 
                     b.Navigation("ExternalConnection");
 

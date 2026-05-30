@@ -12,7 +12,7 @@ public class WhoopRecoveriesTests
     public void Should_define_score_state_and_ingested_via_constants_and_construct_entity()
     {
         ScoreState.All.Should().BeEquivalentTo(new[] { "SCORED", "PENDING_SCORE", "UNSCORABLE" });
-        IngestedVia.All.Should().BeEquivalentTo(new[] { "webhook", "poller", "on_open_pull" });
+        IngestedVia.All.Should().BeEquivalentTo(new[] { "webhook", "poller", "on_open_pull", "backfill" });
 
         var recovery = new WhoopRecovery
         {

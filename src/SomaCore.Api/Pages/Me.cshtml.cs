@@ -36,6 +36,7 @@ public sealed class MeModel(
     public DateTimeOffset? LastSeenAt { get; private set; }
 
     public bool WhoopConnected { get; private set; }
+    public bool WhoopRefreshFailed { get; private set; }
     public long? WhoopUserId { get; private set; }
     public string? WhoopEmail { get; private set; }
     public DateTimeOffset? WhoopConnectedAt { get; private set; }
@@ -71,17 +72,22 @@ public sealed class MeModel(
                 SomaCoreUserId = user.Id;
                 LastSeenAt = user.LastSeenAt;
 
+                // Pick up Active OR RefreshFailed so the page can show the
+                // Reconnect banner when WHOOP has hard-rejected our refresh
+                // token. Revoked rows are ignored — they're already torn down.
                 var connection = await dbContext.ExternalConnections
                     .AsNoTracking()
                     .Where(c => c.UserId == user.Id
                              && c.Source == ConnectionSource.Whoop
-                             && c.Status == ConnectionStatus.Active)
+                             && (c.Status == ConnectionStatus.Active
+                                 || c.Status == ConnectionStatus.RefreshFailed))
                     .OrderByDescending(c => c.CreatedAt)
                     .FirstOrDefaultAsync(cancellationToken);
 
                 if (connection is not null)
                 {
                     WhoopConnected = true;
+                    WhoopRefreshFailed = connection.Status == ConnectionStatus.RefreshFailed;
                     WhoopConnectedAt = connection.CreatedAt;
                     if (connection.ConnectionMetadata.RootElement.TryGetProperty("whoop_user_id", out var idEl)
                         && idEl.ValueKind == System.Text.Json.JsonValueKind.Number)
@@ -103,11 +109,13 @@ public sealed class MeModel(
                     // takes a slower load (3-5 sec) once, then renders the fresh data.
                     // `?force=true` overrides the staleness check so the pull is
                     // demonstrable on demand (admin-only — gated below).
+                    // Skip entirely when the connection is in refresh_failed: the
+                    // refresh will just fail again and add latency for no win.
                     var stale = LatestRecovery is null
                         || (DateTimeOffset.UtcNow - LatestRecovery.CycleStartAt) > StalenessThreshold;
                     var adminForce = force == true
                         && (await authorizationService.AuthorizeAsync(User, "Admin")).Succeeded;
-                    if (stale || adminForce)
+                    if (!WhoopRefreshFailed && (stale || adminForce))
                     {
                         ForcedOnOpenPull = adminForce;
                         await TriggerOnOpenPullAsync(connection.Id, cancellationToken);
@@ -122,10 +130,11 @@ public sealed class MeModel(
 
         WhoopBanner = whoop switch
         {
-            "connected" => "WHOOP connected.",
-            "failed"    => "WHOOP connection failed. Please try again.",
-            "cancelled" => "WHOOP authorization was cancelled.",
-            _           => null,
+            "connected"    => "WHOOP connected.",
+            "failed"       => "WHOOP connection failed. Please try again.",
+            "cancelled"    => "WHOOP authorization was cancelled.",
+            "disconnected" => "WHOOP disconnected.",
+            _              => null,
         };
 
         var adminCheck = await authorizationService.AuthorizeAsync(User, "Admin");

@@ -1,8 +1,12 @@
+using Azure.Monitor.OpenTelemetry.Exporter;
+
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Identity.Web;
 using Microsoft.Identity.Web.UI;
+
+using OpenTelemetry.Trace;
 
 using Serilog;
 using Serilog.Formatting.Compact;
@@ -11,6 +15,7 @@ using SomaCore.Api;
 using SomaCore.Api.Authentication;
 using SomaCore.Api.Whoop;
 using SomaCore.Infrastructure;
+using SomaCore.Infrastructure.Observability;
 using SomaCore.Infrastructure.Whoop;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -30,7 +35,19 @@ var connectionString = builder.Configuration.GetConnectionString("Postgres")
 builder.Services.AddSomaCoreInfrastructure(connectionString);
 builder.Services.AddSomaCoreKeyVault(builder.Configuration);
 builder.Services.AddSomaCoreWhoop(builder.Configuration);
+builder.Services.AddSomaCoreTelemetry(builder.Configuration);
 builder.Services.AddSingleton<IWhoopStateProtector, WhoopStateProtector>();
+
+// Application Insights exporter for the ingestion trace contract (ADR 0011).
+// Opt-in via Telemetry:ApplicationInsightsConnectionString (typically a Key
+// Vault reference). When unset (local dev), spans still emit through the
+// ActivitySource but nothing leaves the process.
+var aiConnectionString = builder.Configuration[$"{TelemetryOptions.SectionName}:ApplicationInsightsConnectionString"];
+if (!string.IsNullOrWhiteSpace(aiConnectionString))
+{
+    builder.Services.AddOpenTelemetry()
+        .WithTracing(t => t.AddAzureMonitorTraceExporter(o => o.ConnectionString = aiConnectionString));
+}
 builder.Services.AddHostedService<SomaCore.Api.Whoop.WhoopWebhookDrainer>();
 
 // Container Apps ingress terminates TLS; the container sees plain HTTP. Honor
@@ -115,6 +132,11 @@ app.UseSerilogRequestLogging();
 
 app.UseAuthentication();
 app.UseAuthorization();
+// Antiforgery middleware: validates the __RequestVerificationToken on POSTs
+// that carry form data (Razor Pages' form tag helper auto-emits the token
+// for any <form method="post"> on a .cshtml view). The WHOOP webhook is
+// application/json + AllowAnonymous, so it's unaffected.
+app.UseAntiforgery();
 app.UseMiddleware<JitUserProvisioningMiddleware>();
 
 app.MapGet("/", () => Results.Ok(ServiceInfo.Default))

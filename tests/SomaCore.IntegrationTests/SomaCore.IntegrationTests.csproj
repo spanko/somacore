@@ -7,6 +7,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio">
@@ -32,6 +36,7 @@
     <ProjectReference Include="..\..\src\SomaCore.Domain\SomaCore.Domain.csproj" />
     <ProjectReference Include="..\..\src\SomaCore.Infrastructure\SomaCore.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\SomaCore.Api\SomaCore.Api.csproj" />
+    <ProjectReference Include="..\..\src\SomaCore.IngestionJobs\SomaCore.IngestionJobs.csproj" />
   </ItemGroup>
 
 </Project>

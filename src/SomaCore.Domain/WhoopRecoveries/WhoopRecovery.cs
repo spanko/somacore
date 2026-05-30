@@ -12,7 +12,13 @@ public class WhoopRecovery : IHasTimestamps
 
     public Guid UserId { get; set; }
 
-    public Guid ExternalConnectionId { get; set; }
+    /// <summary>
+    /// FK to <see cref="ExternalConnection"/>. Nullable so that disconnecting
+    /// WHOOP (deleting the connection row) preserves the recovery as
+    /// historical data tied to the user, not the connection.
+    /// See <c>docs/schema/SCHEMA-NOTES.md</c> — "Cascade rules".
+    /// </summary>
+    public Guid? ExternalConnectionId { get; set; }
 
     public long WhoopCycleId { get; set; }
 

@@ -18,6 +18,7 @@ public class OAuthAuditTests
             "token_refresh_failed",
             "revoke_detected",
             "manual_disconnect",
+            "backfill",
         });
 
         OAuthAuditSource.All.Should().BeEquivalentTo(new[]

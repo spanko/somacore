@@ -37,4 +37,25 @@ public sealed class AzureKeyVaultSecretsClient : IKeyVaultSecretsClient
             return null;
         }
     }
+
+    public async Task<bool> TryDeleteSecretAsync(string name, CancellationToken cancellationToken)
+    {
+        try
+        {
+            // StartDeleteSecretAsync kicks off a soft-delete operation; we don't
+            // wait for the long-running side to complete — disconnect is fast
+            // and the secret has no further value the moment we initiate.
+            await _secretClient.StartDeleteSecretAsync(name, cancellationToken);
+            return true;
+        }
+        catch (RequestFailedException ex) when (ex.Status == 404)
+        {
+            // Already gone (e.g., disconnect after a partial earlier failure) — treat as success.
+            return true;
+        }
+        catch (RequestFailedException)
+        {
+            return false;
+        }
+    }
 }

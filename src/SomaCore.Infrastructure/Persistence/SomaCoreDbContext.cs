@@ -6,6 +6,8 @@ using SomaCore.Domain.OAuthAudit;
 using SomaCore.Domain.Users;
 using SomaCore.Domain.WebhookEvents;
 using SomaCore.Domain.WhoopRecoveries;
+using SomaCore.Domain.WhoopSleeps;
+using SomaCore.Domain.WhoopWorkouts;
 
 namespace SomaCore.Infrastructure.Persistence;
 
@@ -21,6 +23,10 @@ public class SomaCoreDbContext : DbContext
     public DbSet<ExternalConnection> ExternalConnections => Set<ExternalConnection>();
 
     public DbSet<WhoopRecovery> WhoopRecoveries => Set<WhoopRecovery>();
+
+    public DbSet<WhoopSleep> WhoopSleeps => Set<WhoopSleep>();
+
+    public DbSet<WhoopWorkout> WhoopWorkouts => Set<WhoopWorkout>();
 
     public DbSet<WebhookEvent> WebhookEvents => Set<WebhookEvent>();
 
