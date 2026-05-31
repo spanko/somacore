@@ -267,12 +267,28 @@ To retrieve later: `az keyvault secret show --vault-name somacore-dev-kv --name 
 
 ## Routine deploys
 
-There are two deploy paths. **Pick the one that matches what you changed.**
+**There is no CI/CD.** No `.github/workflows/` — every deploy is a manual `scripts\deploy-*.ps1` invocation from a workstation with `az` logged in. GitHub Actions is on the roadmap (see [Future: GitHub Actions](#future-github-actions)) but until it lands, the table below is the authoritative path.
+
+Three deploy paths. **Pick the one(s) that match what you changed.**
 
 | Changed | Use | What it touches | Time |
 |---|---|---|---|
-| C# code, Razor pages, CSS, Dockerfile | [`scripts/deploy-app.ps1`](../scripts/deploy-app.ps1) | Container App image only | ~90 sec |
+| C# code under `SomaCore.Api/` (Razor pages, endpoints, etc.) OR `Infrastructure/` / `Domain/` that the API consumes | [`scripts/deploy-app.ps1`](../scripts/deploy-app.ps1) | `somacore-api` Container App image only | ~90 sec |
+| C# code under `SomaCore.IngestionJobs/` OR `Infrastructure/` / `Domain/` that the poller consumes | [`scripts/deploy-jobs.ps1`](../scripts/deploy-jobs.ps1) | `somacore-poller` Container Apps Job image only | ~90 sec |
 | `infra/**` (new resource, env var, role, secret binding, Postgres config) | [`scripts/deploy-infra.ps1`](../scripts/deploy-infra.ps1) | Whole template | 2.5–5 min |
+
+**Most substantive Track A-era changes touch shared `Infrastructure/` + `Domain/` code, which the API AND the poller both reference. Run BOTH `deploy-app.ps1` and `deploy-jobs.ps1` in those cases.** Otherwise the API ships new behavior and the poller keeps running the previous binary, which can produce silent drift (e.g. new handler registered in the API but the poller still calls the old signature).
+
+### Migrations are a separate, ordered step
+
+EF Core migrations do NOT auto-apply on app startup (`Program.cs` doesn't call `Migrate()`). If your deploy includes schema changes, run them **before** rolling the app, or the new code will hit "column does not exist" errors on first request.
+
+Order:
+
+1. `dotnet ef database update` against dev DB (see [Database migrations](#database-migrations) below for the firewall-rule dance)
+2. `scripts\deploy-app.ps1` and/or `scripts\deploy-jobs.ps1`
+
+The reverse order (app first, then migrations) is unsafe — the new container will start serving traffic and crash on the first request that touches the new schema.
 
 ### App rollout — fast path
 
@@ -282,7 +298,23 @@ There are two deploy paths. **Pick the one that matches what you changed.**
 
 Runs `az acr build` against the local working tree, tags the image with the short git SHA + `:latest`, and `az containerapp update --image ...` to roll the running revision. **No Bicep, no Postgres, no Key Vault.** The Container App's revision history gives us the rollback path (`az containerapp revision activate --revision <previous>`).
 
-The script ends by calling `/admin/health` against the live FQDN — quick smoke that the new revision came up.
+The script ends by calling `/admin/health/live` against the live FQDN — quick smoke that the new revision came up.
+
+### Jobs rollout — fast path
+
+```powershell
+.\scripts\deploy-jobs.ps1
+```
+
+Mirror of `deploy-app.ps1` for the IngestionJobs binary. Builds `src/SomaCore.IngestionJobs/Dockerfile` into `somacoredevacr.azurecr.io/somacore-jobs:<git-sha>`, then `az containerapp job update --image ...` on `somacore-poller`. The next scheduled execution (per the cron on the job) picks up the new image; for an immediate test:
+
+```powershell
+az containerapp job start -g somacore-dev-rg -n somacore-poller
+```
+
+Container Apps Jobs cache the image at the job-resource level, not per-execution, so an `update` is enough; no per-execution param change needed.
+
+**Failure mode to watch for:** if you only run `deploy-app.ps1` after a change that affected shared `Infrastructure/` code (handler signatures, DI registrations, schema entities), the poller keeps running the previous image. Symptoms: API behaves correctly, poller logs show stale calls or `MissingMethodException` against the new DLLs. Fix: run `deploy-jobs.ps1` to catch up.
 
 ### Infra rollout — full path
 
@@ -295,14 +327,28 @@ Runs `az deployment group create` against `infra/main.bicep`, but **preserves**:
 
 - The current Postgres admin password (read from KV, passed back in — no rotation).
 - The currently-deployed Container App image tag (read from the running app, passed back as `apiImage` — no rollback to the placeholder).
+- The currently-deployed Jobs image tag (read from `somacore-poller`, passed back as `jobsImage`).
 
 If the deploy fails on `ServerIsBusy` from Postgres (which happens when the server is mid-operation — backup, RP reconciliation, etc.), the script waits 60 sec and retries once. After two failures, you investigate.
+
+`deploy-infra.ps1` does NOT roll either image. After a successful infra deploy you still need `deploy-app.ps1` / `deploy-jobs.ps1` if you also have code changes to ship.
 
 ### Why the split
 
 A whole-template ARM deployment re-evaluates every resource in `main.bicep`, even ones that haven't changed. Most are trivially idempotent. Postgres extension config (`azure.extensions=PGCRYPTO`) isn't — every PUT takes a server-config lock, which collides with anything else Postgres is doing. Routing app-only changes through the Container App resource directly skips that entire failure mode and shaves ~3 minutes off the loop.
 
 We'll revisit this once we want blue-green deploys: Container Apps natively supports multi-revision traffic split, but the current setup uses `activeRevisionsMode: Single` (auto-cuts traffic to the latest) — adequate for phase-1 single-replica dev, not staged/live promotion.
+
+### Future: GitHub Actions
+
+The "manual scripts on every push" model is the chosen path for phase 1 — explicitly. We've sketched but NOT built a GHA workflow that would:
+
+- Run `ci.yml` on every PR + push to main: restore → build → unit tests → integration tests (runner has Docker for Testcontainers)
+- Run `deploy-dev.yml` on push to main after CI passes: OIDC login → build+push both images → temp firewall rule → `dotnet ef database update` → drop firewall rule → roll API → roll Jobs → smoke check
+
+Auth would be OIDC federated credentials on a new `SomaCore CI` Entra app (no stored secrets). The SP needs: `AcrPush` on the registry, `Contributor` on the API Container App + poller Job, `Key Vault Secrets User` on the vault (to read the Postgres admin password for the migration step), and a temp firewall rule per run (runner is not Azure-internal so `AllowAllAzureServices` doesn't cover it).
+
+Until that lands, the manual scripts above are the truth.
 
 ### Land-mine: the empty-password failure mode
 
