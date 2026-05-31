@@ -97,17 +97,23 @@ public sealed class BackfillModel(
     {
         GeneratedAt = DateTimeOffset.UtcNow;
 
-        Connections = await dbContext.ExternalConnections
+        // Project to an anonymous shape first, order in SQL, then construct
+        // the record. EF can't translate OrderBy on a record-constructor
+        // expression (the constructor isn't a column-bound projection).
+        var rows = await dbContext.ExternalConnections
             .AsNoTracking()
             .Where(c => c.Source == ConnectionSource.Whoop
                      && c.Status == ConnectionStatus.Active)
             .Join(dbContext.Users.AsNoTracking(),
                   c => c.UserId,
                   u => u.Id,
-                  (c, u) => new ConnectionOption(
-                      c.Id, u.Email, u.DisplayName, c.CreatedAt))
-            .OrderBy(o => o.Email)
+                  (c, u) => new { c.Id, u.Email, u.DisplayName, c.CreatedAt })
+            .OrderBy(x => x.Email)
             .ToListAsync(ct);
+
+        Connections = rows
+            .Select(x => new ConnectionOption(x.Id, x.Email, x.DisplayName, x.CreatedAt))
+            .ToList();
     }
 
     public sealed record ConnectionOption(
