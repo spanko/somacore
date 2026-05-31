@@ -27,4 +27,19 @@ public static class MountainTime
         var local = TimeZoneInfo.ConvertTime(value, Tz);
         return local.ToString("yyyy-MM-dd");
     }
+
+    /// <summary>
+    /// Short clock-time form, e.g. "10:30 PM". No date, no zone suffix —
+    /// used where surrounding context (a date column on the same row) makes
+    /// those redundant and noisy. Hour is single-digit when applicable
+    /// ("9:05 AM" not "09:05 AM").
+    /// </summary>
+    public static string FormatTimeShort(DateTimeOffset value)
+    {
+        var local = TimeZoneInfo.ConvertTime(value, Tz);
+        return local.ToString("h:mm tt", System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    public static string FormatTimeShort(DateTimeOffset? value)
+        => value is null ? "—" : FormatTimeShort(value.Value);
 }

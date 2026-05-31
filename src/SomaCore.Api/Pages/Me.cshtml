@@ -126,7 +126,7 @@
                             <td>
                                 @if (r.SleepStartAt.HasValue && r.SleepEndAt.HasValue)
                                 {
-                                    @MountainTime.Format(r.SleepStartAt.Value) <text> → </text> @MountainTime.Format(r.SleepEndAt.Value)
+                                    @MountainTime.FormatTimeShort(r.SleepStartAt.Value) <text> → </text> @MountainTime.FormatTimeShort(r.SleepEndAt.Value)
                                 }
                                 else
                                 {
