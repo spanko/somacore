@@ -14,7 +14,7 @@
     <p class="banner">@Model.WhoopBanner</p>
 }
 
-@if (Model.WhoopRefreshFailed)
+@if (Model.WhoopNeedsReconnect)
 {
     <div class="banner-warning" role="alert">
         <span class="banner-text">Your WHOOP connection needs to be refreshed.</span>

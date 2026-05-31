@@ -44,4 +44,14 @@ public sealed class WhoopOptions
     /// <summary>Space-separated WHOOP scopes, e.g. "read:recovery read:cycles read:sleep read:workout read:profile offline".</summary>
     [Required]
     public string Scopes { get; init; } = "read:recovery read:cycles read:sleep read:workout read:profile offline";
+
+    /// <summary>
+    /// The parsed form of <see cref="Scopes"/> for callers that need a set rather
+    /// than the wire-format string. OAuth init writes the raw string into the
+    /// /authorize URL; downstream callers (e.g. the /me staleness check) read
+    /// this parsed list. Single source of truth — when <see cref="Scopes"/>
+    /// changes, both paths see the change without a separate constant to update.
+    /// </summary>
+    public IReadOnlyCollection<string> GetRequiredScopes()
+        => Scopes.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 }
