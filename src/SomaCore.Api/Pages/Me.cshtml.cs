@@ -4,12 +4,14 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Microsoft.Identity.Web;
 
 using SomaCore.Domain.ExternalConnections;
 using SomaCore.Domain.WhoopRecoveries;
 using SomaCore.Infrastructure.Persistence;
 using SomaCore.Infrastructure.Recovery;
+using SomaCore.Infrastructure.Whoop;
 
 namespace SomaCore.Api.Pages;
 
@@ -18,8 +20,11 @@ public sealed class MeModel(
     SomaCoreDbContext dbContext,
     IRecoveryIngestionHandler recoveryHandler,
     ILogger<MeModel> logger,
-    IAuthorizationService authorizationService) : PageModel
+    IAuthorizationService authorizationService,
+    IOptions<WhoopOptions> whoopOptions) : PageModel
 {
+    private readonly WhoopOptions _whoopOptions = whoopOptions.Value;
+
     /// <summary>
     /// On-open pull triggers when the latest recovery for the user is missing
     /// or older than this. Conservative — only kicks in for genuinely stale
@@ -37,6 +42,22 @@ public sealed class MeModel(
 
     public bool WhoopConnected { get; private set; }
     public bool WhoopRefreshFailed { get; private set; }
+
+    /// <summary>
+    /// True when the connection's stored OAuth scopes are missing one or more
+    /// scopes currently required by <see cref="WhoopOptions.Scopes"/>. Surfaces
+    /// the silent-staleness case: refresh keeps succeeding under RFC 6749 §6
+    /// (refresh cannot widen scope), connection looks healthy, but downstream
+    /// fetches that need the new scopes will 403. Drives the same reconnect
+    /// banner as <see cref="WhoopRefreshFailed"/>. Render-only; no status
+    /// mutation.
+    /// </summary>
+    public bool WhoopScopesStale { get; private set; }
+
+    /// <summary>True when the reconnect banner should render — either of the
+    /// two render conditions above is enough.</summary>
+    public bool WhoopNeedsReconnect => WhoopRefreshFailed || WhoopScopesStale;
+
     public long? WhoopUserId { get; private set; }
     public string? WhoopEmail { get; private set; }
     public DateTimeOffset? WhoopConnectedAt { get; private set; }
@@ -88,6 +109,8 @@ public sealed class MeModel(
                 {
                     WhoopConnected = true;
                     WhoopRefreshFailed = connection.Status == ConnectionStatus.RefreshFailed;
+                    WhoopScopesStale = !WhoopConnectionScopes.HasRequiredScopes(
+                        connection.Scopes, _whoopOptions.GetRequiredScopes());
                     WhoopConnectedAt = connection.CreatedAt;
                     if (connection.ConnectionMetadata.RootElement.TryGetProperty("whoop_user_id", out var idEl)
                         && idEl.ValueKind == System.Text.Json.JsonValueKind.Number)
