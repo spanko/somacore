@@ -269,6 +269,27 @@ All Session 4 gaps remain closed; Session 4.5 introduced no new ones.
 
 ---
 
+## Post-Session-5 close-out: scope-staleness banner
+
+**Status.** ⬛ Merged · ⬜ Verified  ·  Commit `fc5523e` on `feat/track-a-sessions-4-5-and-5`
+
+Closes the silent-staleness gap opened by commit `c96f62c` (broadened default `WhoopOptions.Scopes`). OAuth refresh under RFC 6749 §6 cannot widen scope, so existing connections (Tai's) stay `Active` indefinitely while missing `read:sleep` + `read:workout`. The `/me` reconnect banner now surfaces for these.
+
+### Exit criteria
+
+- [x] `WhoopOptions.GetRequiredScopes()` parses the configured scope string — single source of truth shared with OAuth init
+- [x] `WhoopConnectionScopes.HasRequiredScopes(stored, required)` pure static helper, order-insensitive, whitespace-tolerant
+- [x] `MeModel.WhoopScopesStale` + `WhoopNeedsReconnect` properties; `/me` view conditions banner on `WhoopNeedsReconnect`
+- [x] Render-only — no new `ConnectionStatus` value, no banner copy change, no status mutation, no migration
+- [x] 13 unit tests on the helper + 3 integration tests on the `/me` flow
+- [x] Tests: 58/45 unit, 35/32 integration
+
+### Known gap (carry forward — file a future prompt)
+
+- [ ] **Poller-side `insufficient_scope` / 403 handling on `/sleep` and `/workout`.** Between deploy and Tai reconnecting, the poller's calls to those endpoints will 403 for her connection. Currently those failures log as a generic `WHOOP returned 403` without distinguishing scope-insufficiency from auth-failure or rate-limit. Suggested follow-up: detect 403 + `insufficient_scope` per RFC 6750 §3, emit a structured Serilog event with the missing scopes, optionally surface on `/admin/health` at the connection level. Should NOT mutate `Status` — `/me` already covers the user-facing path. Best done before observing 7 days of Tai's data so the silent 403s don't pollute the trace baseline.
+
+---
+
 ## Track A close
 
 When all five sessions are at "Verified", Track A is done. Confirm against the top-level track exit criteria:
@@ -277,4 +298,4 @@ When all five sessions are at "Verified", Track A is done. Confirm against the t
 - [ ] Edge states (UNSCORABLE, PENDING_SCORE) handled correctly — code covered by tests; needs production observation against real data
 - [x] Recovery-with-sleep-timestamp displayed correctly on `/me` — Session 5 added the join + display
 
-All code is shipped. Remaining gates are operational: deploy the API and IngestionJobs from this branch, broaden the WHOOP OAuth scopes for existing users (existing connections need to disconnect/reconnect to pick up `read:sleep` + `read:workout`), then observe for 7 days of Tai's data. Once verified, Track B (rules engine) is unblocked.
+All code is shipped. Remaining gates are operational: deploy the API and IngestionJobs from this branch, then the internal users see the new banner on `/me`, click reconnect, and the broader scopes land. Observe for 7 days of Tai's data; once verified, Track B (rules engine) is unblocked.
