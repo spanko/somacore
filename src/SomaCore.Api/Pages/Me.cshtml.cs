@@ -9,6 +9,7 @@ using Microsoft.Identity.Web;
 
 using SomaCore.Domain.ExternalConnections;
 using SomaCore.Domain.WhoopRecoveries;
+using SomaCore.Infrastructure.Agent;
 using SomaCore.Infrastructure.Persistence;
 using SomaCore.Infrastructure.Recovery;
 using SomaCore.Infrastructure.Whoop;
@@ -21,7 +22,8 @@ public sealed class MeModel(
     IRecoveryIngestionHandler recoveryHandler,
     ILogger<MeModel> logger,
     IAuthorizationService authorizationService,
-    IOptions<WhoopOptions> whoopOptions) : PageModel
+    IOptions<WhoopOptions> whoopOptions,
+    IDailyAgentService dailyAgent) : PageModel
 {
     private readonly WhoopOptions _whoopOptions = whoopOptions.Value;
 
@@ -66,6 +68,13 @@ public sealed class MeModel(
     public RecoveryViewModel? LatestRecovery { get; private set; }
 
     public IReadOnlyList<RecoveryViewModel> RecentRecoveries { get; private set; } = Array.Empty<RecoveryViewModel>();
+
+    /// <summary>
+    /// The most recent daily-card agent response for this user. Null until
+    /// the first invocation lands. Per ADR 0012, the card scaffolding
+    /// renders from this; the Fable 5 backed implementation arrives later.
+    /// </summary>
+    public DailyAgentResponse? DailyCard { get; private set; }
 
     /// <summary>True when this request forced an on-open pull (via <c>?force=true</c>).</summary>
     public bool ForcedOnOpenPull { get; private set; }
@@ -126,6 +135,25 @@ public sealed class MeModel(
                     var rows = await LoadRecentAsync(user.Id, cancellationToken);
                     RecentRecoveries = rows;
                     LatestRecovery = rows.FirstOrDefault();
+
+                    // Daily agent card per ADR 0012. Render whatever's freshest
+                    // for this user; the stub currently auto-generates the
+                    // first one if none exists so /me has something to show.
+                    DailyCard = await dailyAgent.GetLatestAsync(user.Id, cancellationToken);
+                    if (DailyCard is null)
+                    {
+                        var generate = await dailyAgent.GenerateAsync(user.Id, cancellationToken);
+                        if (generate.IsSuccess)
+                        {
+                            DailyCard = generate.Value;
+                        }
+                        else
+                        {
+                            logger.LogWarning(
+                                "Daily agent generate failed for user {UserId}: {Error}",
+                                user.Id, generate.Error);
+                        }
+                    }
 
                     // On-open pull: if we have no recovery on file OR the latest is stale,
                     // synchronously hit WHOOP via the shared ingestion handler. The page

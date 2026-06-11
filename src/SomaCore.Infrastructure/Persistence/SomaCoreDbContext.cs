@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 
+using SomaCore.Domain.Agent;
 using SomaCore.Domain.ExternalConnections;
 using SomaCore.Domain.JobRuns;
 using SomaCore.Domain.OAuthAudit;
@@ -33,6 +34,8 @@ public class SomaCoreDbContext : DbContext
     public DbSet<OAuthAuditEntry> OAuthAuditEntries => Set<OAuthAuditEntry>();
 
     public DbSet<JobRun> JobRuns => Set<JobRun>();
+
+    public DbSet<AgentInvocation> AgentInvocations => Set<AgentInvocation>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
+using SomaCore.Infrastructure.Agent;
 using SomaCore.Infrastructure.Backfill;
 using SomaCore.Infrastructure.Observability;
 using SomaCore.Infrastructure.Persistence;
@@ -86,6 +87,18 @@ public static class DependencyInjection
         services.AddScoped<IWhoopWorkoutIngestionHandler, WhoopWorkoutIngestionHandler>();
         services.AddScoped<IWhoopBackfillService, WhoopBackfillService>();
 
+        return services;
+    }
+
+    /// <summary>
+    /// Daily-card agent (ADR 0012). Phase-1 stub implementation; the Fable 5
+    /// backed version registers via this same extension method once
+    /// persona + bounds + privacy review land.
+    /// </summary>
+    public static IServiceCollection AddSomaCoreAgent(
+        this IServiceCollection services)
+    {
+        services.AddScoped<IDailyAgentService, StubDailyAgentService>();
         return services;
     }
 

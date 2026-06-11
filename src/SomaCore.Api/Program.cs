@@ -35,6 +35,7 @@ var connectionString = builder.Configuration.GetConnectionString("Postgres")
 builder.Services.AddSomaCoreInfrastructure(connectionString);
 builder.Services.AddSomaCoreKeyVault(builder.Configuration);
 builder.Services.AddSomaCoreWhoop(builder.Configuration);
+builder.Services.AddSomaCoreAgent();
 builder.Services.AddSomaCoreTelemetry(builder.Configuration);
 builder.Services.AddSingleton<IWhoopStateProtector, WhoopStateProtector>();
 

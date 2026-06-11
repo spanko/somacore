@@ -1,6 +1,7 @@
 @page "/me"
 @model SomaCore.Api.Pages.MeModel
 @using SomaCore.Api.Time
+@using SomaCore.Domain.Agent
 @using SomaCore.Domain.WhoopRecoveries
 @{
     ViewData["Title"] = "/me";
@@ -95,6 +96,47 @@
         <p><span class="badge badge-unscorable">UNSCORABLE</span> Recovery unavailable for this cycle.</p>
     }
 </section>
+
+@if (Model.DailyCard is not null)
+{
+    <section class="card daily-card">
+        <h2>Today's plan</h2>
+        @if (Model.DailyCard.IsStub)
+        {
+            <p class="banner-warning" role="alert">
+                <span class="banner-text">
+                    Scaffolding only — this is a placeholder card. The Fable&nbsp;5 voice
+                    lands once Tai signs off on persona + bounds + privacy review.
+                    See ADR&nbsp;0012.
+                </span>
+            </p>
+        }
+        <p class="daily-read">@Model.DailyCard.TodaysRead</p>
+        @if (Model.DailyCard.Actions.Count > 0)
+        {
+            <ol class="daily-actions">
+                @foreach (var a in Model.DailyCard.Actions.OrderBy(x => x.Rank))
+                {
+                    <li>
+                        <strong>@a.Title</strong>
+                        <details>
+                            <summary class="subtitle">Why this · <code>@a.Category</code></summary>
+                            <p>@a.Why</p>
+                        </details>
+                    </li>
+                }
+            </ol>
+        }
+        <p class="subtitle daily-provenance">
+            Generated @MountainTime.Format(Model.DailyCard.GeneratedAt)
+            · model <code>@Model.DailyCard.ModelId</code>
+            @if (Model.DailyCard.CostEstimateCents is int cents)
+            {
+                <text> · est. cost @(cents)¢</text>
+            }
+        </p>
+    </section>
+}
 
 @if (Model.RecentRecoveries.Count > 0)
 {

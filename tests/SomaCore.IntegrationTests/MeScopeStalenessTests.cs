@@ -21,6 +21,7 @@ using SomaCore.Api.Pages;
 using SomaCore.Domain.Common;
 using SomaCore.Domain.ExternalConnections;
 using SomaCore.Domain.Users;
+using SomaCore.Infrastructure.Agent;
 using SomaCore.Infrastructure.Persistence;
 using SomaCore.Infrastructure.Recovery;
 using SomaCore.Infrastructure.Whoop;
@@ -170,8 +171,16 @@ public class MeScopeStalenessTests : IAsyncLifetime
             RedirectUri = "https://example.com/cb",
         });
 
+        // The daily-card agent is out of scope for this test — give /me a
+        // no-op stub so OnGetAsync wires through to the WHOOP load path.
+        var dailyAgent = Substitute.For<IDailyAgentService>();
+        dailyAgent.GetLatestAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns((DailyAgentResponse?)null);
+        dailyAgent.GenerateAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(Result<DailyAgentResponse>.Failure("stub disabled in test"));
+
         var model = new MeModel(_db, recoveryHandler,
-            NullLogger<MeModel>.Instance, authService, whoopOptions);
+            NullLogger<MeModel>.Instance, authService, whoopOptions, dailyAgent);
 
         // Minimal PageContext so OnGetAsync can access User claims + HttpContext.
         var httpContext = new DefaultHttpContext
