@@ -230,13 +230,29 @@ public sealed class MeModel(
             .Distinct()
             .ToList();
 
-        var sleepsByWhoopId = sleepIds.Count == 0
-            ? new Dictionary<Guid, (DateTimeOffset StartAt, DateTimeOffset EndAt)>()
+        // A single WhoopSleepId can have multiple rows in whoop_sleeps when
+        // the schema's unique index — (external_connection_id, whoop_sleep_id)
+        // — doesn't catch it: e.g. an old sleep row carries NULL FK after a
+        // disconnect (ON DELETE SET NULL), and a subsequent backfill on the
+        // new connection ingests the same WHOOP sleep again under the new
+        // FK. Both rows coexist. Materialize and dedupe in memory, keeping
+        // the most recently ingested row for each id.
+        var sleepRows = sleepIds.Count == 0
+            ? new List<SleepDedupeRow>()
             : await dbContext.WhoopSleeps
                 .AsNoTracking()
                 .Where(s => s.UserId == userId && sleepIds.Contains(s.WhoopSleepId))
-                .Select(s => new { s.WhoopSleepId, s.StartAt, s.EndAt })
-                .ToDictionaryAsync(x => x.WhoopSleepId, x => (x.StartAt, x.EndAt), ct);
+                .OrderByDescending(s => s.IngestedAt)
+                .Select(s => new SleepDedupeRow(s.WhoopSleepId, s.StartAt, s.EndAt))
+                .ToListAsync(ct);
+
+        var sleepsByWhoopId = sleepRows
+            .GroupBy(s => s.WhoopSleepId)
+            .ToDictionary(g => g.Key, g =>
+            {
+                var first = g.First();
+                return (first.StartAt, first.EndAt);
+            });
 
         // Fallback: for recoveries with no WhoopSleepId, look for a sleep
         // that starts inside the recovery cycle window. Bounded query — only
@@ -290,6 +306,8 @@ public sealed class MeModel(
                 sleepEnd);
         }).ToList();
     }
+
+    private sealed record SleepDedupeRow(Guid WhoopSleepId, DateTimeOffset StartAt, DateTimeOffset EndAt);
 
     private async Task TriggerOnOpenPullAsync(Guid connectionId, CancellationToken ct)
     {

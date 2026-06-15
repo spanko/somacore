@@ -284,9 +284,11 @@ Closes the silent-staleness gap opened by commit `c96f62c` (broadened default `W
 - [x] 13 unit tests on the helper + 3 integration tests on the `/me` flow
 - [x] Tests: 58/45 unit, 35/32 integration
 
-### Known gap (carry forward — file a future prompt)
+### Known gaps (carry forward — file future prompts)
 
 - [ ] **Poller-side `insufficient_scope` / 403 handling on `/sleep` and `/workout`.** Between deploy and Tai reconnecting, the poller's calls to those endpoints will 403 for her connection. Currently those failures log as a generic `WHOOP returned 403` without distinguishing scope-insufficiency from auth-failure or rate-limit. Suggested follow-up: detect 403 + `insufficient_scope` per RFC 6750 §3, emit a structured Serilog event with the missing scopes, optionally surface on `/admin/health` at the connection level. Should NOT mutate `Status` — `/me` already covers the user-facing path. Best done before observing 7 days of Tai's data so the silent 403s don't pollute the trace baseline.
+
+- [ ] **Handler idempotency is scoped to one connection, not one user.** The unique index on `whoop_sleeps` / `whoop_workouts` / `whoop_recoveries` is `(external_connection_id, natural_key)`. After a disconnect + reconnect + backfill, the same WHOOP entity can end up with two rows: the old row with NULL `external_connection_id` (set by `ON DELETE SET NULL` on disconnect) and the new row with the new connection's id. Surfaced as a 500 on `/me` when `LoadRecentAsync` built a `Dictionary<WhoopSleepId, …>` — patched in-memory in commit f0bcae5 by deduping the most recently ingested row. Proper fix is one of: (a) widen the natural-key uniqueness to `(user_id, natural_key)` and adopt NULL-FK rows into the new connection at backfill time; (b) add a backfill-time merge step that promotes NULL-FK rows to the active connection before insert; (c) the same `OrderByDescending(IngestedAt) + GroupBy` pattern at every read site that materializes by natural key. Whichever option lands should also cover workouts and recoveries — same mechanism, same risk; only sleeps tripped over it because `MeModel` is the only read site that uses a dictionary.
 
 ---
 
