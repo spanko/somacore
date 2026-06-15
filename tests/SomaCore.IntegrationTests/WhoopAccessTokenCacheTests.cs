@@ -152,6 +152,94 @@ public class WhoopAccessTokenCacheTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Should_recover_when_kv_refresh_token_was_rotated_by_concurrent_caller()
+    {
+        // Race-rescue scenario: the API + IngestionJobs processes each kept
+        // their own in-memory cache, both saw an expired token, both POSTed
+        // to /oauth/oauth2/token with the same RT. The other process won,
+        // wrote the new RT to KV, and is using its new access token. Our
+        // process's call returned 4xx because the RT we sent is now dead.
+        // The patch: re-read KV, see a different RT, retry once, succeed,
+        // do NOT flip status to refresh_failed.
+        var kv = Substitute.For<IKeyVaultSecretsClient>();
+        kv.TryGetSecretAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            // 1st read (initial fetch): the RT this process held.
+            // 2nd read (race-rescue): the fresh RT the other process wrote.
+            .Returns("rt-old-that-other-process-just-used", "rt-fresh-from-other-process");
+
+        var whoop = Substitute.For<IWhoopOAuthClient>();
+        whoop.RefreshTokenAsync("rt-old-that-other-process-just-used", Arg.Any<CancellationToken>())
+            .Returns(Result<WhoopTokenResponse>.Failure("WHOOP refresh returned 400."));
+        whoop.RefreshTokenAsync("rt-fresh-from-other-process", Arg.Any<CancellationToken>())
+            .Returns(Result<WhoopTokenResponse>.Success(new WhoopTokenResponse(
+                AccessToken: "fresh-access-token",
+                RefreshToken: "rt-after-our-rescue-rotation",
+                ExpiresInSeconds: 3600,
+                Scope: "read:recovery offline",
+                TokenType: "Bearer")));
+
+        var cache = new WhoopAccessTokenCache(
+            kv,
+            whoop,
+            _services.GetRequiredService<IServiceScopeFactory>(),
+            NullLogger<WhoopAccessTokenCache>.Instance);
+
+        var result = await cache.GetAccessTokenAsync(_connectionId, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue("the race-rescue retry succeeded");
+        result.Value.Should().Be("fresh-access-token");
+
+        using var scope = _services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<SomaCoreDbContext>();
+        var fresh = await db.ExternalConnections.AsNoTracking()
+            .SingleAsync(c => c.Id == _connectionId);
+        fresh.Status.Should().Be(ConnectionStatus.Active,
+            "the 4xx was a race, not a permanent invalidation — status must stay active");
+        fresh.RefreshFailureCount.Should().Be(0,
+            "rescue success resets the failure counter on the success path");
+        fresh.LastRefreshError.Should().BeNull();
+
+        // The rescue rotation should have written the new RT back to KV.
+        await kv.Received().SetSecretAsync(
+            Arg.Any<string>(), "rt-after-our-rescue-rotation", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Should_flip_to_refresh_failed_when_both_initial_and_rescue_return_4xx()
+    {
+        // Confirms the rescue doesn't mask a TRUE permanent failure: when the
+        // KV secret actually has changed but WHOOP still rejects both the old
+        // and the new RT, that's an honest invalidation. Flip status.
+        var kv = Substitute.For<IKeyVaultSecretsClient>();
+        kv.TryGetSecretAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns("rt-old", "rt-newer-but-also-dead");
+
+        var whoop = Substitute.For<IWhoopOAuthClient>();
+        whoop.RefreshTokenAsync("rt-old", Arg.Any<CancellationToken>())
+            .Returns(Result<WhoopTokenResponse>.Failure("WHOOP refresh returned 400."));
+        whoop.RefreshTokenAsync("rt-newer-but-also-dead", Arg.Any<CancellationToken>())
+            .Returns(Result<WhoopTokenResponse>.Failure("WHOOP refresh returned 400."));
+
+        var cache = new WhoopAccessTokenCache(
+            kv,
+            whoop,
+            _services.GetRequiredService<IServiceScopeFactory>(),
+            NullLogger<WhoopAccessTokenCache>.Instance);
+
+        var result = await cache.GetAccessTokenAsync(_connectionId, CancellationToken.None);
+
+        result.IsSuccess.Should().BeFalse();
+
+        using var scope = _services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<SomaCoreDbContext>();
+        var fresh = await db.ExternalConnections.AsNoTracking()
+            .SingleAsync(c => c.Id == _connectionId);
+        fresh.Status.Should().Be(ConnectionStatus.RefreshFailed,
+            "both attempts permanently failed — this is a real invalidation");
+        fresh.RefreshFailureCount.Should().Be(1);
+    }
+
+    [Fact]
     public async Task Should_leave_status_active_when_whoop_times_out()
     {
         var kv = Substitute.For<IKeyVaultSecretsClient>();

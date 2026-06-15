@@ -115,10 +115,52 @@ public sealed class WhoopAccessTokenCache(
         if (!refreshResult.IsSuccess)
         {
             // ┌─────────────────────────────────────────────────────────────────┐
+            // │ Race-rescue before declaring permanent failure.                  │
+            // │                                                                  │
+            // │ WHOOP rotates the refresh token on every call. Our two host      │
+            // │ processes (SomaCore.Api + SomaCore.IngestionJobs) each keep      │
+            // │ their own in-memory cache + per-process SemaphoreSlim. They      │
+            // │ don't coordinate. When both processes need the same connection   │
+            // │ in the same instant, both POST /oauth/oauth2/token with the     │
+            // │ same RT — the first wins and rotates, the second sees a 4xx     │
+            // │ because the RT it sent is now dead. That's a transient race,    │
+            // │ not a permanent revocation: the OTHER caller has already        │
+            // │ written the new RT to Key Vault.                                 │
+            // │                                                                  │
+            // │ Re-read KV and, if the RT has changed under us, retry exactly   │
+            // │ once with the fresh value. If the rescue still fails OR the RT  │
+            // │ in KV didn't move, it's a real permanent failure.                │
+            // └─────────────────────────────────────────────────────────────────┘
+            var rescueRt = await kv.TryGetSecretAsync(connection.KeyVaultSecretName, cancellationToken);
+            if (!string.IsNullOrEmpty(rescueRt)
+                && !string.Equals(rescueRt, refreshToken, StringComparison.Ordinal))
+            {
+                logger.LogInformation(
+                    "Refresh 4xx for connection {ConnectionId}; KV RT changed mid-flight — retrying once with the fresh RT",
+                    externalConnectionId);
+                try
+                {
+                    refreshResult = await whoop.RefreshTokenAsync(rescueRt, cancellationToken);
+                }
+                catch (Exception ex) when (
+                    ex is HttpRequestException
+                    || ex is TaskCanceledException tce2 && !cancellationToken.IsCancellationRequested && tce2.InnerException is TimeoutException
+                    || ex is TimeoutException)
+                {
+                    logger.LogWarning(ex,
+                        "Race-rescue refresh hit a transient failure for connection {ConnectionId} — leaving status as-is",
+                        externalConnectionId);
+                    return Result<string>.Failure($"Transient WHOOP refresh failure (rescue): {ex.Message}");
+                }
+            }
+        }
+
+        if (!refreshResult.IsSuccess)
+        {
+            // ┌─────────────────────────────────────────────────────────────────┐
             // │ Refresh failure mode: PERMANENT.                                 │
-            // │ WHOOP returned a 4xx (invalid_grant, expired refresh, revoked    │
-            // │ on WHOOP's side, etc.). The current refresh token will never    │
-            // │ succeed again — the user must re-authorize.                      │
+            // │ Both the original attempt and (if applicable) the race-rescue   │
+            // │ attempt returned 4xx. The user must re-authorize.                │
             // │ Flip status to refresh_failed so /me renders the Reconnect       │
             // │ banner; the sweeper will keep no-op'ing on this row until the   │
             // │ user completes a fresh OAuth flow.                               │
