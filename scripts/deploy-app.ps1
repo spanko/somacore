@@ -34,6 +34,22 @@ az acr build `
     --image     "$AppName`:latest" `
     --file      $DockerfilePath `
     $ContextPath 2>&1 | Select-Object -Last 5
+# az is a native exe — failures set $LASTEXITCODE but do NOT throw, even with
+# $ErrorActionPreference='Stop'. If we skipped this check the script would
+# happily proceed to roll the Container App to a phantom image tag and then
+# claim success. Hard-fail here.
+if ($LASTEXITCODE -ne 0) {
+    throw "az acr build failed (exit code $LASTEXITCODE) — image was NOT pushed. Aborting."
+}
+
+# Verify the manifest is actually in ACR before we point the revision at it.
+# Belt-and-braces: catches the case where the build returned 0 but the push
+# was silently dropped (we hit this exact mode in 2026-06 due to an MCR pull
+# failure mid-build that the acr build command swallowed).
+$tagExists = az acr repository show-tags --name $Registry --repository $AppName --query "[?@=='$Tag']|[0]" -o tsv
+if (-not $tagExists) {
+    throw "Tag '$Tag' not found in $Registry/$AppName after build. Aborting before update."
+}
 
 $image = "$Registry.azurecr.io/$AppName`:$Tag"
 
@@ -44,6 +60,9 @@ az containerapp update `
     --image          $image `
     --query "{revision:properties.latestRevisionName, state:properties.provisioningState}" `
     -o table
+if ($LASTEXITCODE -ne 0) {
+    throw "az containerapp update failed (exit code $LASTEXITCODE)."
+}
 
 Write-Host "`nDeployed $image" -ForegroundColor Green
 Write-Host "Health: " -NoNewline

@@ -38,6 +38,18 @@ az acr build `
     --image     "$ImageName`:latest" `
     --file      $DockerfilePath `
     $ContextPath 2>&1 | Select-Object -Last 5
+# az is a native exe — failures set $LASTEXITCODE but do NOT throw, even with
+# $ErrorActionPreference='Stop'. Without this check the script would happily
+# proceed to point the Job at a phantom image tag and report success.
+if ($LASTEXITCODE -ne 0) {
+    throw "az acr build failed (exit code $LASTEXITCODE) — image was NOT pushed. Aborting."
+}
+
+# Verify the manifest is actually in ACR before pointing the Job at it.
+$tagExists = az acr repository show-tags --name $Registry --repository $ImageName --query "[?@=='$Tag']|[0]" -o tsv
+if (-not $tagExists) {
+    throw "Tag '$Tag' not found in $Registry/$ImageName after build. Aborting before update."
+}
 
 $image = "$Registry.azurecr.io/$ImageName`:$Tag"
 
@@ -48,6 +60,9 @@ az containerapp job update `
     --image          $image `
     --query "{name:name, image:properties.template.containers[0].image}" `
     -o table
+if ($LASTEXITCODE -ne 0) {
+    throw "az containerapp job update failed (exit code $LASTEXITCODE)."
+}
 
 Write-Host "`nDeployed $image" -ForegroundColor Green
 Write-Host "Next scheduled execution will use this image." -ForegroundColor Green
