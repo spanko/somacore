@@ -61,15 +61,27 @@ We pin to `claude-fable-5` for the daily card. The rest of the codebase (any fut
 
 ## Implementation outline
 
-1. Domain: `AgentInvocation` entity + `AgentAction` record.
-2. Migration: `0005_agent_invocations.sql` — one new table, `ON DELETE CASCADE` on `users` per the existing pattern.
-3. Infrastructure: `IDailyAgentService.GenerateAsync(userId, ct)` returning `Result<DailyAgentResponse>`. Stub implementation that returns a hardcoded sample.
-4. `/me`: a "Daily plan" card rendered from the stub, with the privacy disclosure stub.
-5. **Gate:** the actual Anthropic call lands in a separate PR after Tai signs off on persona, in-bounds list, and the privacy doc.
+1. Domain: `AgentInvocation` entity + `AgentAction` record. ✓ (commit `30fcb5a`)
+2. Migration: `0005_agent_invocations.sql` — one new table, `ON DELETE CASCADE` on `users` per the existing pattern. ✓ (commit `30fcb5a`)
+3. Infrastructure: `IDailyAgentService.GenerateAsync(userId, ct)` returning `Result<DailyAgentResponse>`. Stub implementation that returns a hardcoded sample. ✓ (commit `30fcb5a`)
+4. `/me`: a "Daily plan" card rendered from the stub, with the privacy disclosure stub. ✓ (commit `30fcb5a`)
+5. **Gate — pre-Fable signoffs from Tai:**
+   - ✅ Persona + voice spec — delivered 2026-06-22, captured at [`docs/agent-voice-and-persona.md`](../agent-voice-and-persona.md). This is what gets compiled into the system prompt verbatim.
+   - ✅ In/out-of-bounds — delivered 2026-06-22, captured at [`docs/agent-bounds.md`](../agent-bounds.md). This encodes mechanically as a response validator, not as a polite suggestion to the model.
+   - ⬜ Privacy review of `docs/privacy-data-handling.md` — outstanding. Gates the actual network call to Anthropic.
+
+## Pre-implementation reconciliation owed
+
+Two small cleanups before the Fable wire-up that should land in the same PR as the network call:
+
+1. **`AgentActionCategory` constants in [`AgentAction.cs`](../../src/SomaCore.Domain/Agent/AgentAction.cs) need to match Tai's IN BOUNDS list.** Today's placeholder set (`Hydration`, `CaffeineTiming`, `WorkoutIntensity`, `SleepTiming`, `Stress`, `MealTiming`) is partial. Tai's list adds: `workout_structure`, `macros`, `recovery`, `symptom_adjustment`, `supplements_from_labs`, and renames `WorkoutIntensity` → `training_intensity` (the semantic shifts from "intensity" to "type and intensity"). Reconcile against [`docs/agent-bounds.md`](../agent-bounds.md).
+2. **Add a `Source` field on `AgentAction`** to carry provenance per Tai's voice doc — `protocol-based`, `user data-informed`, or a reference to a specific user-uploaded lab document. The lab-document ingestion surface doesn't exist yet; the field can land as `string?` for now and the model can populate it for the first two values.
 
 ## References
 
 - `docs/architecture.md` — original LLM-narrates-rules architecture (still valid, just sequenced after the alpha now).
 - `CLAUDE.md` — phase-1 scope brief.
+- [`docs/agent-voice-and-persona.md`](../agent-voice-and-persona.md) — Tai's voice spec; the system prompt.
+- [`docs/agent-bounds.md`](../agent-bounds.md) — Tai's bounds; the refusal guard.
 - `docs/privacy-data-handling.md` — the doc Tai reviews before the network call to Anthropic.
 - ADR 0011 — ingestion trace contract (the alpha card opens its own trace root distinct from the ingestion roots; same `IngestionTracing` helpers, different source).
