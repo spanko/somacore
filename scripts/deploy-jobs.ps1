@@ -46,8 +46,10 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 # Verify the manifest is actually in ACR before pointing the Job at it.
-$tagExists = az acr repository show-tags --name $Registry --repository $ImageName --query "[?@=='$Tag']|[0]" -o tsv
-if (-not $tagExists) {
+# Avoid JMESPath subscript syntax ([0]) in --query — PowerShell on Windows
+# globs the brackets before az sees them. Fetch the list, check in PS.
+$allTags = (az acr repository show-tags --name $Registry --repository $ImageName -o tsv) -split "`r?`n"
+if ($allTags -notcontains $Tag) {
     throw "Tag '$Tag' not found in $Registry/$ImageName after build. Aborting before update."
 }
 

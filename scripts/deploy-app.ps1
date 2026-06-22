@@ -46,8 +46,11 @@ if ($LASTEXITCODE -ne 0) {
 # Belt-and-braces: catches the case where the build returned 0 but the push
 # was silently dropped (we hit this exact mode in 2026-06 due to an MCR pull
 # failure mid-build that the acr build command swallowed).
-$tagExists = az acr repository show-tags --name $Registry --repository $AppName --query "[?@=='$Tag']|[0]" -o tsv
-if (-not $tagExists) {
+# Avoid JMESPath subscript syntax ([0]) in the --query arg — PowerShell on
+# Windows interprets the brackets as a wildcard glob before az ever sees
+# them. Fetch the full tag list and check membership in PS instead.
+$allTags = (az acr repository show-tags --name $Registry --repository $AppName -o tsv) -split "`r?`n"
+if ($allTags -notcontains $Tag) {
     throw "Tag '$Tag' not found in $Registry/$AppName after build. Aborting before update."
 }
 
