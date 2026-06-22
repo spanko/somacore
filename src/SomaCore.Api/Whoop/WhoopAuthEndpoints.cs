@@ -167,7 +167,14 @@ public static class WhoopAuthEndpoints
         }
 
         var profile = profileResult.Value!;
-        var secretName = $"whoop-refresh-{somacoreUserId}";
+        // Key Vault soft-deletes secrets on TryDeleteSecretAsync (the
+        // disconnect endpoint path). A soft-deleted secret name cannot be
+        // reused for SetSecret — it must be purged or recovered first, and
+        // attempting to SetSecret returns 409 ObjectIsDeletedButRecoverable.
+        // Make every reconnect mint a fresh secret name so we never collide
+        // with a soft-deleted predecessor from a previous disconnect cycle.
+        // Old soft-deleted entries age out per the vault's 90-day retention.
+        var secretName = $"whoop-refresh-{somacoreUserId}-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}";
 
         // Mark any existing active row for (user, whoop) revoked, then insert a fresh active.
         var existing = await db.ExternalConnections
