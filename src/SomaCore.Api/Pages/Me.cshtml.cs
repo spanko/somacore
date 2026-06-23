@@ -72,7 +72,7 @@ public sealed class MeModel(
     /// <summary>
     /// The most recent daily-card agent response for this user. Null until
     /// the first invocation lands. Per ADR 0012, the card scaffolding
-    /// renders from this; the Fable 5 backed implementation arrives later.
+    /// renders from this; the network-backed implementation arrives later.
     /// </summary>
     public DailyAgentResponse? DailyCard { get; private set; }
 

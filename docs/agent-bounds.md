@@ -1,7 +1,7 @@
 # Agent in/out-of-bounds — hard refusal guard
 
 > **Source.** Authored by Tai Palacio, delivered 2026-06-22.
-> **Status.** Source of truth for the daily-card agent's refusal guard.
+> **Status.** Source of truth for the SomaCore AI's refusal guard.
 > This document is encoded **mechanically** as a response validator
 > downstream of the model call — not as a polite suggestion to the model.
 > If the model emits an action whose category is not in the IN BOUNDS list,
@@ -10,7 +10,7 @@
 > [agent-voice-and-persona.md](agent-voice-and-persona.md) for the system
 > prompt that the model itself sees.
 >
-> When the Fable 5 backed implementation lands (currently scaffolded by
+> When the network-backed implementation lands (currently scaffolded by
 > [StubDailyAgentService.cs](../src/SomaCore.Infrastructure/Agent/StubDailyAgentService.cs)
 > per [ADR 0012](decisions/0012-llm-card-before-rules-engine.md)), this
 > list also drives the `AgentActionCategory` constants in

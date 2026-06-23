@@ -14,11 +14,11 @@ Track A (WHOOP ingestion) is now code-complete and shipped to dev. Tai and Adam 
 
 That sequence has a chicken-and-egg problem the original plan didn't surface: Tai cannot authentically spec the rules until she has reacted to something. A spec written from first principles in the abstract will encode what she *thinks* matters, not what actually moves her in practice when she sees a recommendation against her morning recovery. The signal we need to design good rules is the signal we don't yet have.
 
-Anthropic released Fable 5 around the same time Track A landed. Fable 5 is materially better than prior model families at voice consistency, persona discipline, and producing output that reads like a specific coach rather than a generic assistant. With prompt caching on the system prompt + persona + action-library, the per-card cost stays well under a cent.
+Current generation Anthropic models are good enough at voice consistency and persona discipline to make a single-paragraph daily card legibly distinct from a generic LLM completion. With prompt caching on the system prompt + persona + action-library, the per-card cost stays well under a cent.
 
 ## Decision
 
-**Ship an LLM-front daily-action card on `/me`, powered by Fable 5, *before* building the deterministic rules engine.** The rules engine still ships in Track B — but informed by what Tai actually responds to in the alpha, not by guessed-at first-principles rules.
+**Ship an LLM-front daily-action card on `/me` — *the SomaCore AI* — *before* building the deterministic rules engine.** The rules engine still ships in Track B — but informed by what Tai actually responds to in the alpha, not by guessed-at first-principles rules.
 
 ### What this changes
 
@@ -40,11 +40,11 @@ Anthropic released Fable 5 around the same time Track A landed. Fable 5 is mater
 - Apple Health / Oura / nutrition / biomarker ingestion. Still Track C / phase 3.
 - The mobile (Flutter) app. Still phase 3+.
 
-## Why Fable 5 specifically
+## Model choice is a runtime configuration, not an architectural commitment
 
-The card stands or falls on whether it sounds like *the agent we want to build*, not like a chatbot. Fable 5 is the first model family where the voice-consistency and persona-discipline benchmarks make a single-paragraph daily card legibly distinct from a generic LLM completion. The qualitative read on real outputs against test prompts is unambiguously better for this use case than the Claude 4.X family at any tier.
+The specific Anthropic model used to back the SomaCore AI is a config value (`Anthropic:ModelId`), not part of this ADR. Model availability and pricing move faster than ADRs; locking a name in here makes the doc lie within months. Pick the right model at wire-up time and revisit per-call cost / quality as Anthropic's lineup evolves.
 
-We pin to `claude-fable-5` for the daily card. The rest of the codebase (any future "explain this rule" surfaces, admin tooling, batch summarization) stays on the Claude 4.X family.
+The interface (`IDailyAgentService`) abstracts the provider entirely; the prompt is portable; if Anthropic's offering becomes unfit we swap providers without changing the card surface.
 
 ## Consequences
 
@@ -65,14 +65,14 @@ We pin to `claude-fable-5` for the daily card. The rest of the codebase (any fut
 2. Migration: `0005_agent_invocations.sql` — one new table, `ON DELETE CASCADE` on `users` per the existing pattern. ✓ (commit `30fcb5a`)
 3. Infrastructure: `IDailyAgentService.GenerateAsync(userId, ct)` returning `Result<DailyAgentResponse>`. Stub implementation that returns a hardcoded sample. ✓ (commit `30fcb5a`)
 4. `/me`: a "Daily plan" card rendered from the stub, with the privacy disclosure stub. ✓ (commit `30fcb5a`)
-5. **Gate — pre-Fable signoffs from Tai:**
+5. **Gate — pre-wire-up signoffs from Tai:**
    - ✅ Persona + voice spec — delivered 2026-06-22, captured at [`docs/agent-voice-and-persona.md`](../agent-voice-and-persona.md). This is what gets compiled into the system prompt verbatim.
    - ✅ In/out-of-bounds — delivered 2026-06-22, captured at [`docs/agent-bounds.md`](../agent-bounds.md). This encodes mechanically as a response validator, not as a polite suggestion to the model.
    - ⬜ Privacy review of `docs/privacy-data-handling.md` — outstanding. Gates the actual network call to Anthropic.
 
 ## Pre-implementation reconciliation owed
 
-Two small cleanups before the Fable wire-up that should land in the same PR as the network call:
+Two small cleanups before the network wire-up that should land in the same PR as the first real Anthropic call:
 
 1. **`AgentActionCategory` constants in [`AgentAction.cs`](../../src/SomaCore.Domain/Agent/AgentAction.cs) need to match Tai's IN BOUNDS list.** Today's placeholder set (`Hydration`, `CaffeineTiming`, `WorkoutIntensity`, `SleepTiming`, `Stress`, `MealTiming`) is partial. Tai's list adds: `workout_structure`, `macros`, `recovery`, `symptom_adjustment`, `supplements_from_labs`, and renames `WorkoutIntensity` → `training_intensity` (the semantic shifts from "intensity" to "type and intensity"). Reconcile against [`docs/agent-bounds.md`](../agent-bounds.md).
 2. **Add a `Source` field on `AgentAction`** to carry provenance per Tai's voice doc — `protocol-based`, `user data-informed`, or a reference to a specific user-uploaded lab document. The lab-document ingestion surface doesn't exist yet; the field can land as `string?` for now and the model can populate it for the first two values.

@@ -91,9 +91,9 @@ public static class DependencyInjection
     }
 
     /// <summary>
-    /// Daily-card agent (ADR 0012). Phase-1 stub implementation; the Fable 5
-    /// backed version registers via this same extension method once
-    /// persona + bounds + privacy review land.
+    /// Daily-card agent (ADR 0012). Phase-1 stub implementation; the
+    /// network-backed version registers via this same extension method
+    /// once persona + bounds + privacy review land.
     /// </summary>
     public static IServiceCollection AddSomaCoreAgent(
         this IServiceCollection services)

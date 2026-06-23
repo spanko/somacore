@@ -5,8 +5,8 @@ namespace SomaCore.Infrastructure.Agent;
 
 /// <summary>
 /// Generates the daily-card recommendation for one user. Per ADR 0012 this
-/// runs on Fable 5 (or a stub during scaffolding) and is the user-facing
-/// surface for the agent's "today's read" + ranked actions.
+/// is backed by the SomaCore AI (or a stub during scaffolding) and is the
+/// user-facing surface for the agent's "today's read" + ranked actions.
 ///
 /// Every successful invocation writes one row to <c>agent_invocations</c>
 /// — that's the source of truth for what the agent has said and what it

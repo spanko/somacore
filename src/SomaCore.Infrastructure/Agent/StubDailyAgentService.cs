@@ -13,11 +13,11 @@ namespace SomaCore.Infrastructure.Agent;
 /// Placeholder implementation that returns a hardcoded sample card so the
 /// /me surface, the EF table, and the DI plumbing all work end to end.
 ///
-/// Per ADR 0012 the real Fable 5 backed implementation lands in a separate
-/// PR after Tai signs off on persona, in-bounds list, and the privacy doc.
-/// Until then this stub gives us a visible card and a logged
-/// <c>agent_invocations</c> row so we can develop the rendering surface
-/// without burning any model spend.
+/// Per ADR 0012 the real network-backed implementation lands in a
+/// separate PR after Tai signs off on persona, in-bounds list, and the
+/// privacy doc. Until then this stub gives us a visible card and a
+/// logged <c>agent_invocations</c> row so we can develop the rendering
+/// surface without burning any model spend.
 ///
 /// Every response from the stub carries <c>IsStub = true</c>, which the
 /// view uses to render a "scaffolding only" banner so we never accidentally
@@ -27,7 +27,15 @@ public sealed class StubDailyAgentService(
     SomaCoreDbContext dbContext,
     ILogger<StubDailyAgentService> logger) : IDailyAgentService
 {
-    private const string StubModelId = "stub-pre-fable";
+    private const string StubModelId = "stub-pre-ai";
+
+    // Older stub rows in the DB carry "stub-pre-fable" from when the
+    // constant was named that. Keep recognising them so the IsStub banner
+    // still renders correctly for any pre-existing rows.
+    private static readonly HashSet<string> LegacyStubModelIds = new(StringComparer.Ordinal)
+    {
+        "stub-pre-fable",
+    };
 
     public async Task<Result<DailyAgentResponse>> GenerateAsync(
         Guid userId,
@@ -61,7 +69,7 @@ public sealed class StubDailyAgentService(
         {
             UserId = userId,
             InputSnapshot = JsonDocument.Parse(inputSnapshot),
-            TodaysRead = "Sample read — this is a scaffold of the daily card. The real Fable 5 voice lands in a separate PR after Tai signs off on persona + bounds + privacy.",
+            TodaysRead = "Sample read — this is a scaffold of the daily card. The real SomaCore AI voice lands in a separate PR after Tai signs off on persona + bounds + privacy.",
             ActionsJson = JsonDocument.Parse(actionsJson),
             ModelId = StubModelId,
             DurationMs = 0,
@@ -105,7 +113,7 @@ public sealed class StubDailyAgentService(
             Actions: actions,
             GeneratedAt: latest.CreatedAt,
             ModelId: latest.ModelId,
-            IsStub: latest.ModelId == StubModelId,
+            IsStub: latest.ModelId == StubModelId || LegacyStubModelIds.Contains(latest.ModelId),
             CostEstimateCents: latest.CostEstimateUsd is null
                 ? null
                 : (int)(latest.CostEstimateUsd.Value * 100m));

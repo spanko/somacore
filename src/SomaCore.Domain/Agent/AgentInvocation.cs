@@ -6,14 +6,15 @@ using SomaCore.Domain.Users;
 namespace SomaCore.Domain.Agent;
 
 /// <summary>
-/// One row per invocation of the daily-card agent. We log every call so we
-/// can review outputs, debug bad cards, and analyze what patterns matter
-/// when Track B's rules engine is informed by what the alpha surfaced.
+/// One row per invocation of the SomaCore AI's daily card. We log every
+/// call so we can review outputs, debug bad cards, and analyze what
+/// patterns matter when Track B's rules engine is informed by what the
+/// alpha surfaced.
 ///
-/// Per ADR 0012, the daily card runs on Fable 5 and ships before the
-/// deterministic rules engine. The input snapshot here is the raw signal we
-/// fed the model; the output is what came back. Nothing in this table
-/// causes side effects — it's a record of read-only recommendations.
+/// Per ADR 0012, the daily card ships before the deterministic rules
+/// engine. The input snapshot here is the raw signal we fed the model;
+/// the output is what came back. Nothing in this table causes side
+/// effects — it's a record of read-only recommendations.
 /// </summary>
 public class AgentInvocation : IHasTimestamps
 {
@@ -42,7 +43,7 @@ public class AgentInvocation : IHasTimestamps
     /// </summary>
     public JsonDocument ActionsJson { get; set; } = null!;
 
-    /// <summary>e.g. "claude-fable-5".</summary>
+    /// <summary>The Anthropic model id this call hit. Runtime value.</summary>
     public string ModelId { get; set; } = string.Empty;
 
     /// <summary>Cached input tokens this invocation hit, if any.</summary>

@@ -1,8 +1,8 @@
 # Agent voice and persona
 
 > **Source.** Authored by Tai Palacio, delivered 2026-06-22.
-> **Status.** Source of truth for the daily-card agent's system prompt.
-> When the Fable 5 backed implementation lands (currently scaffolded by
+> **Status.** Source of truth for the SomaCore AI's system prompt.
+> When the network-backed implementation lands (currently scaffolded by
 > [StubDailyAgentService.cs](../src/SomaCore.Infrastructure/Agent/StubDailyAgentService.cs)
 > per [ADR 0012](decisions/0012-llm-card-before-rules-engine.md)), this
 > document IS what gets compiled into the system prompt — verbatim,
