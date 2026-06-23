@@ -200,13 +200,28 @@ public sealed class MeModel(
     // produces no row.
     private async Task<List<RecoveryViewModel>> LoadRecentAsync(Guid userId, CancellationToken ct)
     {
-        var recoveries = await dbContext.WhoopRecoveries
+        // A single WhoopCycleId can have multiple rows in whoop_recoveries —
+        // the unique index is on (external_connection_id, whoop_cycle_id), so
+        // the same WHOOP cycle gets a fresh row every time a disconnect +
+        // reconnect + backfill cycle runs (old connection's row, NULL-FK row
+        // from the cascade, new connection's row). Without deduping, the
+        // 14 most recent recovery rows are dominated by duplicates of the
+        // last few cycle dates instead of 14 distinct cycles.
+        //
+        // Pull more than 14 raw rows, then dedupe in memory by
+        // whoop_cycle_id keeping the most recently ingested row. 42 = 14
+        // distinct cycles × 3 worst-case duplicates per cycle (the pattern
+        // we saw after the 2026-06-22 mass-reconnect: old connection +
+        // NULL-FK + new connection).
+        var rawRows = await dbContext.WhoopRecoveries
             .AsNoTracking()
             .Where(r => r.UserId == userId)
             .OrderByDescending(r => r.CycleStartAt)
-            .Take(14)
+            .ThenByDescending(r => r.IngestedAt)
+            .Take(42)
             .Select(r => new
             {
+                r.WhoopCycleId,
                 r.ScoreState,
                 r.RecoveryScore,
                 r.HrvRmssdMilli,
@@ -218,6 +233,13 @@ public sealed class MeModel(
                 r.WhoopSleepId,
             })
             .ToListAsync(ct);
+
+        var recoveries = rawRows
+            .GroupBy(r => r.WhoopCycleId)
+            .Select(g => g.OrderByDescending(r => r.IngestedAt).First())
+            .OrderByDescending(r => r.CycleStartAt)
+            .Take(14)
+            .ToList();
 
         if (recoveries.Count == 0)
         {
