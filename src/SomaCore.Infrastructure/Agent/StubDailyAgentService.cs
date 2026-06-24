@@ -54,7 +54,7 @@ public sealed class StubDailyAgentService(
                 Rank: 2),
             new("Sample action — keep today's workout to Zone 2.",
                 "Recovery is on the low end of your trailing 7-day median; a high-strain session today compounds the deficit.",
-                AgentActionCategory.WorkoutIntensity,
+                AgentActionCategory.TrainingIntensity,
                 Rank: 3),
         };
 

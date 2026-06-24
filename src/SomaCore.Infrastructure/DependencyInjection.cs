@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
@@ -91,14 +92,52 @@ public static class DependencyInjection
     }
 
     /// <summary>
-    /// Daily-card agent (ADR 0012). Phase-1 stub implementation; the
-    /// network-backed version registers via this same extension method
-    /// once persona + bounds + privacy review land.
+    /// Daily-card agent (ADR 0012).
+    ///
+    /// The router fronts <see cref="IDailyAgentService"/>. The stub always
+    /// registers. The Anthropic-backed live service registers only when
+    /// <see cref="AnthropicOptions.Enabled"/> is true AND
+    /// <see cref="AnthropicOptions.ApiKey"/> is populated — so a
+    /// half-configured environment keeps showing the stub instead of
+    /// crashing at first invocation.
+    ///
+    /// Per-user opt-in lives on <c>users.agent_opt_in</c>. The router reads
+    /// it per call so flips take effect without a redeploy.
     /// </summary>
     public static IServiceCollection AddSomaCoreAgent(
-        this IServiceCollection services)
+        this IServiceCollection services,
+        IConfiguration configuration)
     {
-        services.AddScoped<IDailyAgentService, StubDailyAgentService>();
+        services
+            .AddOptions<AnthropicOptions>()
+            .Bind(configuration.GetSection(AnthropicOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        services.AddScoped<StubDailyAgentService>();
+
+        var anthropic = configuration
+            .GetSection(AnthropicOptions.SectionName)
+            .Get<AnthropicOptions>() ?? new AnthropicOptions();
+
+        if (anthropic.Enabled && !string.IsNullOrWhiteSpace(anthropic.ApiKey))
+        {
+            // Single long-lived HttpClient + Singleton service. Our request
+            // volume is tiny (one call per /me load per opted-in user) so
+            // socket-exhaustion isn't a real risk and we trade IHttpClientFactory's
+            // handler-rotation for a simpler captive-dependency-free shape.
+            services.AddSingleton(sp =>
+            {
+                var opts = sp.GetRequiredService<IOptions<AnthropicOptions>>().Value;
+                var http = new HttpClient();
+                return new AnthropicMessagesClient(
+                    AnthropicMessagesClient.ConfigureHttp(
+                        http, opts.ApiKey, TimeSpan.FromSeconds(opts.RequestTimeoutSeconds)));
+            });
+            services.AddSingleton<LiveDailyAgentService>();
+        }
+
+        services.AddScoped<IDailyAgentService, DailyAgentRouter>();
         return services;
     }
 

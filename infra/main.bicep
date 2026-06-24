@@ -71,6 +71,12 @@ param whoopRedirectUri string = ''
 @description('Comma-separated Entra Object IDs that get access to /admin/* surfaces.')
 param adminUserOids string = ''
 
+@description('Whether the SomaCore AI daily card (ADR 0012) is enabled. When false, /me always shows the stub card. When true, opted-in users get the live agent.')
+param anthropicEnabled bool = false
+
+@description('Anthropic model id (runtime config, not a documented commitment). Required when anthropicEnabled is true.')
+param anthropicModelId string = ''
+
 // ----- naming derived from the prefix ----------------------------------------
 
 var workspaceName  = '${namingPrefix}-law'
@@ -186,6 +192,8 @@ module containerApps 'modules/containerApps.bicep' = {
     customHostnameCertificateId: customHostnameCertificateId
     whoopRedirectUri: whoopRedirectUri
     adminUserOids: adminUserOids
+    anthropicEnabled: anthropicEnabled
+    anthropicModelId: anthropicModelId
   }
   dependsOn: [
     pgConnectionStringSecret

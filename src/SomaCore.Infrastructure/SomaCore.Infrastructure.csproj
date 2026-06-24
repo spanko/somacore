@@ -22,4 +22,19 @@
     <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
   </ItemGroup>
 
+  <!-- Agent persona + bounds: Tai's source-of-truth docs are read at
+       runtime by LiveDailyAgentService. Copy them next to the binary
+       so they ship in the published output. Single source of truth: the
+       files in docs/. -->
+  <ItemGroup Label="Agent doc resources">
+    <Content Include="..\..\docs\agent-voice-and-persona.md"
+             Link="AgentDocs\agent-voice-and-persona.md"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\..\docs\agent-bounds.md"
+             Link="AgentDocs\agent-bounds.md"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

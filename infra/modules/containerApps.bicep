@@ -70,7 +70,13 @@ param whoopRedirectUri string = ''
 @description('Comma-separated Entra Object IDs that get the "Admin" policy.')
 param adminUserOids string = ''
 
-@description('Whether to bind KV-backed app secrets (postgres connection string, web/whoop client secrets) onto the Container App. Set true once KV secrets are populated and the image actually consumes them.')
+@description('Whether the SomaCore AI daily card (ADR 0012) is enabled. When false, /me always shows the stub card. When true, opted-in users get the live agent.')
+param anthropicEnabled bool = false
+
+@description('Anthropic model id (runtime config, not a documented commitment). Required when anthropicEnabled is true.')
+param anthropicModelId string = ''
+
+@description('Whether to bind KV-backed app secrets (postgres connection string, web/whoop client secrets, anthropic API key) onto the Container App. Set true once KV secrets are populated and the image actually consumes them.')
 param wireKeyVaultSecrets bool = false
 
 // Secrets the Container App holds, sourced from Key Vault via the UAMI.
@@ -93,6 +99,11 @@ var kvSecrets = wireKeyVaultSecrets ? [
   {
     name: 'whoop-client-secret'
     keyVaultUrl: '${keyVaultUri}secrets/whoop-client-secret'
+    identity: uamiId
+  }
+  {
+    name: 'anthropic-api-key'
+    keyVaultUrl: '${keyVaultUri}secrets/anthropic-api-key'
     identity: uamiId
   }
 ] : []
@@ -138,6 +149,14 @@ var staticEnv = [
     name: 'Admin__UserOids'
     value: adminUserOids
   }
+  {
+    name: 'Anthropic__Enabled'
+    value: '${anthropicEnabled}'
+  }
+  {
+    name: 'Anthropic__ModelId'
+    value: anthropicModelId
+  }
 ]
 
 var kvEnv = wireKeyVaultSecrets ? [
@@ -156,6 +175,10 @@ var kvEnv = wireKeyVaultSecrets ? [
   {
     name: 'Whoop__ClientSecret'
     secretRef: 'whoop-client-secret'
+  }
+  {
+    name: 'Anthropic__ApiKey'
+    secretRef: 'anthropic-api-key'
   }
 ] : []
 

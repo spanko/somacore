@@ -36,6 +36,13 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
 
         builder.Property(u => u.LastSeenAt);
 
+        // ADR 0012 per-user opt-in for the network-backed daily-card agent.
+        // Default false at row creation; flipped via SQL or future admin
+        // toggle. /me reads this to decide stub vs live for each user.
+        builder.Property(u => u.AgentOptIn)
+            .IsRequired()
+            .HasDefaultValue(false);
+
         builder.HasIndex(u => u.EntraOid)
             .IsUnique();
 

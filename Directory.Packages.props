@@ -51,6 +51,16 @@
     <PackageVersion Include="Azure.Security.KeyVault.Secrets" Version="4.7.0" />
   </ItemGroup>
 
+  <!-- Note on Anthropic integration: we deliberately do NOT take the
+       official Anthropic NuGet ("Anthropic") or the community Anthropic.SDK
+       as dependencies. LiveDailyAgentService talks to the Anthropic
+       Messages API directly via HttpClient + System.Text.Json. The
+       surface we touch is small (one endpoint, one request shape, one
+       response shape) and the SDKs' typed-union/collection patterns add
+       more friction than they save at this scope. Revisit if we ever want
+       streaming, batches, or features that benefit from typed bindings. -->
+
+
   <ItemGroup Label="Testing">
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
     <PackageVersion Include="xunit" Version="2.9.2" />

@@ -23,6 +23,11 @@ RUN dotnet restore src/SomaCore.Api/SomaCore.Api.csproj
 # Now the rest of the source.
 COPY src/ ./src/
 
+# Agent persona + bounds docs (ADR 0012) — Infrastructure.csproj declares
+# them as Content items at ../../docs/, so they must exist at /src/docs/
+# during dotnet publish.
+COPY docs/agent-voice-and-persona.md docs/agent-bounds.md ./docs/
+
 RUN dotnet publish src/SomaCore.Api/SomaCore.Api.csproj \
     --configuration Release \
     --no-restore \
