@@ -25,6 +25,11 @@ docs/
 **/*.md
 session-*-kickoff.md
 
+# Agent persona + bounds docs are first-party runtime inputs (ADR 0012) —
+# carve them back into the build context so the API Dockerfile can COPY them.
+!docs/agent-voice-and-persona.md
+!docs/agent-bounds.md
+
 # Coverage / artifacts
 **/coverage*
 **/TestResults/
