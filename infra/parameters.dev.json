@@ -33,10 +33,10 @@
       "value": "d9a4dcc0-50de-4c43-b46b-4d81233e3b1b,133d9162-da63-4330-848e-d3f36b089bf0"
     },
     "anthropicEnabled": {
-      "value": false
+      "value": true
     },
     "anthropicModelId": {
-      "value": ""
+      "value": "claude-sonnet-4-6"
     }
   }
 }
