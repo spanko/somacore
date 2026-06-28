@@ -21,6 +21,24 @@ namespace SomaCore.Infrastructure.Agent;
 ///   <item><c>Anthropic.Enabled = true</c>, user opt-in = true → live.</item>
 /// </list>
 ///
+/// Every route decision is logged at Information level with the values
+/// that drove it. When a user gets the wrong route in production
+/// (e.g. opted-in user lands on stub), the log line tells us exactly
+/// which branch fired — no more guessing.
+///
+/// <para>
+/// <see cref="GetLatestAsync"/> applies two staleness rules on top of
+/// whatever the underlying service returns:
+/// <list type="bullet">
+///   <item>If the latest stored row is older than <see cref="StaleAfter"/>,
+///         return null so the caller triggers a fresh generation.</item>
+///   <item>If the user is on the Live route but the latest stored row was
+///         written by Stub (<c>IsStub == true</c>), return null. Without
+///         this, an old stub row from before the opt-in flip blocks the
+///         user from ever seeing a live card.</item>
+/// </list>
+/// </para>
+///
 /// If a live call fails (network, validation, anything), we DO NOT fall
 /// back to the stub mid-render — the user opted in to seeing the live
 /// agent, and silently downgrading would hide drift. We return the
@@ -28,6 +46,12 @@ namespace SomaCore.Infrastructure.Agent;
 /// </summary>
 public sealed class DailyAgentRouter : IDailyAgentService
 {
+    // How long a daily card stays fresh before we regenerate. Tuned to
+    // ~4 generations per user per day during the alpha (cheap with prompt
+    // caching) so Adam and Tai can see iteration without manually deleting
+    // rows. Lengthen once we have a "regenerate now" button.
+    private static readonly TimeSpan StaleAfter = TimeSpan.FromHours(6);
+
     private readonly StubDailyAgentService _stub;
     private readonly LiveDailyAgentService? _live;
     private readonly AnthropicOptions _options;
@@ -66,18 +90,51 @@ public sealed class DailyAgentRouter : IDailyAgentService
         CancellationToken cancellationToken)
     {
         var route = await ResolveRouteAsync(userId, cancellationToken);
-        return route switch
+        var latest = route switch
         {
             AgentRoute.Live when _live is not null
                 => await _live.GetLatestAsync(userId, cancellationToken),
             _   => await _stub.GetLatestAsync(userId, cancellationToken),
         };
+
+        if (latest is null)
+        {
+            return null;
+        }
+
+        var age = DateTimeOffset.UtcNow - latest.GeneratedAt;
+        var stubBlockingLive = route == AgentRoute.Live && latest.IsStub;
+        var ageStale = age > StaleAfter;
+
+        if (stubBlockingLive || ageStale)
+        {
+            _logger.LogInformation(
+                "Treating user {UserId}'s latest agent row as stale → forcing regen. " +
+                "route={Route} ageMinutes={AgeMinutes} latestIsStub={IsStub} reason={Reason}",
+                userId,
+                route,
+                (int)age.TotalMinutes,
+                latest.IsStub,
+                stubBlockingLive ? "stub-blocking-live" : "age-stale");
+            return null;
+        }
+
+        return latest;
     }
 
     private async Task<AgentRoute> ResolveRouteAsync(Guid userId, CancellationToken ct)
     {
-        if (!_options.Enabled || _live is null)
+        if (!_options.Enabled)
         {
+            _logger.LogDebug("Routing user {UserId} to Stub: Anthropic.Enabled=false", userId);
+            return AgentRoute.Stub;
+        }
+        if (_live is null)
+        {
+            _logger.LogWarning(
+                "Routing user {UserId} to Stub: live service not registered despite Anthropic.Enabled=true. " +
+                "Check that Anthropic:ApiKey was non-empty at startup.",
+                userId);
             return AgentRoute.Stub;
         }
 
@@ -88,7 +145,12 @@ public sealed class DailyAgentRouter : IDailyAgentService
             .Where(u => u.Id == userId)
             .Select(u => u.AgentOptIn)
             .FirstOrDefaultAsync(ct);
-        return optedIn ? AgentRoute.Live : AgentRoute.Stub;
+
+        var route = optedIn ? AgentRoute.Live : AgentRoute.Stub;
+        _logger.LogInformation(
+            "Agent route resolved for user {UserId}: {Route} (anthropicEnabled={Enabled} liveRegistered={LiveRegistered} optedIn={OptedIn})",
+            userId, route, _options.Enabled, _live is not null, optedIn);
+        return route;
     }
 
     private enum AgentRoute { Stub, Live }

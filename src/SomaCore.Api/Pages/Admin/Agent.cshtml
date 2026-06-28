@@ -1,0 +1,100 @@
+@page "/admin/agent"
+@model SomaCore.Api.Pages.Admin.AgentModel
+@using SomaCore.Api.Time
+@{
+    ViewData["Title"] = "/admin/agent";
+}
+
+<h1>Agent invocations</h1>
+<p class="subtitle">last 50 across all users · snapshot @MountainTime.Format(Model.GeneratedAt)</p>
+
+@if (!string.IsNullOrEmpty(Model.Banner))
+{
+    <p class="banner">@Model.Banner</p>
+}
+
+<section class="card">
+    @if (Model.Rows.Count == 0)
+    {
+        <p class="subtitle">No agent invocations recorded yet.</p>
+    }
+    else
+    {
+        <div class="admin-table-wrap">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>When</th>
+                        <th>User</th>
+                        <th>Model</th>
+                        <th>Status</th>
+                        <th>Tokens (in/cache/out)</th>
+                        <th>Cost</th>
+                        <th>Duration</th>
+                        <th>Read excerpt</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var r in Model.Rows)
+                    {
+                        <tr>
+                            <td>@MountainTime.Format(r.CreatedAt)</td>
+                            <td><code>@r.UserEmail</code></td>
+                            <td><code>@r.ModelId</code></td>
+                            <td>
+                                @if (r.IsFailure)
+                                {
+                                    <span class="badge badge-unscorable">FAIL</span>
+                                }
+                                else if (r.IsStub)
+                                {
+                                    <span class="badge badge-pending">STUB</span>
+                                }
+                                else
+                                {
+                                    <span class="badge badge-scored">LIVE</span>
+                                }
+                            </td>
+                            <td>
+                                @(r.InputTokens?.ToString() ?? "—") /
+                                @(r.CachedInputTokens?.ToString() ?? "—") /
+                                @(r.OutputTokens?.ToString() ?? "—")
+                            </td>
+                            <td>@(r.CostEstimateCents.HasValue ? r.CostEstimateCents.Value + "¢" : "—")</td>
+                            <td>@(r.DurationMs)ms</td>
+                            <td>@(r.TodaysRead.Length > 80 ? r.TodaysRead[..80] + "…" : r.TodaysRead)</td>
+                            <td>
+                                <form method="post" asp-page-handler="Delete" style="display:inline">
+                                    <input type="hidden" name="id" value="@r.Id" />
+                                    <button type="submit" class="btn-link-danger"
+                                            onclick="return confirm('Delete this invocation? The user\'s next /me load will trigger a fresh generation.')">delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td colspan="9">
+                                <details>
+                                    <summary class="subtitle">details · invocation <code>@r.Id</code> · trace <code>@(r.TraceId ?? "—")</code></summary>
+                                    @if (r.IsFailure)
+                                    {
+                                        <h4>Error</h4>
+                                        <pre>@r.ErrorMessage</pre>
+                                    }
+                                    <h4>Today's read</h4>
+                                    <pre>@r.TodaysRead</pre>
+                                    <h4>Actions</h4>
+                                    <pre>@r.ActionsJson</pre>
+                                    <h4>Input snapshot (what we sent the model)</h4>
+                                    <pre>@r.InputSnapshot</pre>
+                                </details>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+<p class="signout"><a href="/me">← back to /me</a> · <a href="/admin/users">Admin: users</a> · <a href="/admin/health">Admin: health</a> · <a href="/admin/backfill">Admin: backfill</a></p>

@@ -27,15 +27,10 @@ public sealed class StubDailyAgentService(
     SomaCoreDbContext dbContext,
     ILogger<StubDailyAgentService> logger) : IDailyAgentService
 {
+    // Any model id starting with "stub-" is a stub row — see
+    // AgentInvocationKind.IsStub. Older rows carry "stub-pre-fable" from
+    // before the rename; the prefix check covers both.
     private const string StubModelId = "stub-pre-ai";
-
-    // Older stub rows in the DB carry "stub-pre-fable" from when the
-    // constant was named that. Keep recognising them so the IsStub banner
-    // still renders correctly for any pre-existing rows.
-    private static readonly HashSet<string> LegacyStubModelIds = new(StringComparer.Ordinal)
-    {
-        "stub-pre-fable",
-    };
 
     public async Task<Result<DailyAgentResponse>> GenerateAsync(
         Guid userId,
@@ -113,7 +108,7 @@ public sealed class StubDailyAgentService(
             Actions: actions,
             GeneratedAt: latest.CreatedAt,
             ModelId: latest.ModelId,
-            IsStub: latest.ModelId == StubModelId || LegacyStubModelIds.Contains(latest.ModelId),
+            IsStub: AgentInvocationKind.IsStub(latest.ModelId),
             CostEstimateCents: latest.CostEstimateUsd is null
                 ? null
                 : (int)(latest.CostEstimateUsd.Value * 100m));

@@ -155,7 +155,12 @@ public sealed class LiveDailyAgentService : IDailyAgentService
             Actions: actions,
             GeneratedAt: latest.CreatedAt,
             ModelId: latest.ModelId,
-            IsStub: false,
+            // Compute IsStub from the stored ModelId rather than hardcoding
+            // false: an opted-in user can still have an old stub row sitting
+            // in their history from before the flip, and the view needs to
+            // know to render the scaffolding banner over it (and the router
+            // needs to know to treat it as stale).
+            IsStub: AgentInvocationKind.IsStub(latest.ModelId),
             CostEstimateCents: latest.CostEstimateUsd is null
                 ? null
                 : (int)(latest.CostEstimateUsd.Value * 100m));
