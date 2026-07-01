@@ -10,38 +10,24 @@ When patterns change, update this file. When a new architectural decision is mad
 
 **SomaCore** (working name; consumer-facing brand "10 to 100" under evaluation) is a personal health and wellness super-agent that aggregates data from wearables, nutrition platforms, and biomarker systems to generate a daily, prescriptive action plan. The product is a **decision engine, not a dashboard** — every output is an action the user can take today, not a chart for them to interpret. Differentiation comes from the orchestration layer: deterministic rules-engine decisions grounded in physiological science, with an LLM layer that explains the "why" but does not make the call.
 
-**See `docs/architecture.md` for the full architectural picture, `docs/phase-1-scope.md` for what we are building right now.**
+**See `docs/architecture.md` for the full architectural picture, and the Current state section below for where the project actually is.**
 
 ---
 
-## Phase 1 scope (what we are building right now)
+## Current state (phase 2, as of 2026-07-01)
 
-**One sentence:** WHOOP recovery data flowing end-to-end into our system on a rock-solid three-layer ingestion pipeline, with a minimal web view authenticated by Microsoft Entra ID, for three internal users.
+**Phase 1 exited.** WHOOP recovery + sleep + workout ingestion is live on the three-layer pipeline (webhook + reconciliation poller + on-open pull) for the three internal users (Adam, Tai, Greg). Historical scope + exit criteria: `docs/phase-1-scope.md`.
 
-**In scope:**
-- ASP.NET Core minimal API on Azure Container Apps
-- Postgres Flexible Server, EF Core migrations
-- Azure Key Vault for OAuth tokens and secrets
-- Microsoft Entra ID for sign-in (using the `tento100.com` tenant)
-- WHOOP OAuth flow + token refresh
-- Three ingestion paths for **recovery data only**: webhook handler with HMAC validation, reconciliation poller (Container Apps Job), on-open synchronous pull
-- A server-rendered `/me` page showing recovery score, 7-day trend, and ingestion provenance
-- Application Insights tracing
-- Bicep IaC for everything above
+**Shipped since phase 1:**
+- **The SomaCore AI daily card** — Anthropic-backed daily-action card on `/me` per [ADR 0012](./docs/decisions/0012-llm-card-before-rules-engine.md). LLM shipped *before* the rules engine, deliberately, to gather real reactions first. All three users live on it. Persona + bounds are Tai-authored and mechanically enforced (`docs/agent-voice-and-persona.md`, `docs/agent-bounds.md`).
+- **Sleep + workout ingestion** — same handler pattern as recovery, extended per the phase-1 plan.
+- **Self-healing agent cleanup** — staleness detection, stub-blocking-live, diagnostic logging, `/admin/agent` review surface.
 
-**Out of scope (do not build, do not stub, do not "while we're here"):**
-- Flutter mobile app
-- Sleep, workout, cycle data ingestion (the patterns will be extended in phase 2 — same handler, different event types)
-- Apple Health, Oura, Strava, MyFitnessPal integrations
-- Rules engine
-- AI synthesis layer
-- Adherence tracking
-- Multi-tenant signup flow (the three users are managed in Entra)
-- Service Bus (Postgres-backed work queue is sufficient at this scale)
-- Production WHOOP app submission
-- Staging environment
+**What's next (Track D — external data sources).** Tai's 2026-06-28 feedback produced five researched-and-verified seeds. Start at **`docs/track-d-decision-pack.md`** — the one-page rollup with the comparison table, gates, and sequencing. Three session briefs are ready to run: Function Health (`docs/session-function-health-integration.md`), MyFitnessPal (`docs/session-myfitnesspal-integration.md`), Strava (`docs/session-strava-integration.md`). Lumen is deferred (no vendor path); protein-personalization is Track B's input contract.
 
-If a request lands that drifts into out-of-scope territory, **stop and ask Adam** before implementing. Do not invent parallel patterns to accommodate scope creep.
+**Standing direction (2026-07-01):** mobile companion work is **two native apps** — iOS (Swift/HealthKit) first, Android (Kotlin/Health Connect) when non-iOS users onboard. **Flutter is permanently off the table.**
+
+**The scope fence still exists — it just moved.** Don't build ahead of a promoted session brief. If a request drifts outside what a session brief or ADR covers, **stop and ask Adam** before implementing. Do not invent parallel patterns to accommodate scope creep.
 
 ---
 
@@ -60,8 +46,10 @@ If a request lands that drifts into out-of-scope territory, **stop and ask Adam*
 | IaC | Bicep | [0008](./docs/decisions/0008-bicep-for-iac.md) |
 | Work queue (phase 1) | Postgres-backed `webhook_events` table | [0009](./docs/decisions/0009-postgres-backed-work-queue.md) |
 | `/me` rendering | Razor Pages (not Blazor) | [0010](./docs/decisions/0010-razor-pages-for-me.md) |
+| Ingestion observability | Per-source trace contract | [0011](./docs/decisions/0011-ingestion-trace-contract.md) |
+| AI daily card sequencing | LLM card before rules engine | [0012](./docs/decisions/0012-llm-card-before-rules-engine.md) |
 
-**Three-layer ingestion in one paragraph:** WHOOP webhooks pre-warm the data store in real time. A reconciliation poller catches missed webhooks (WHOOP's docs are explicit that webhook delivery is not guaranteed). An on-open synchronous pull is the last-resort fallback. All three paths feed the same `IngestRecovery` handler — same idempotency, same logs, same code path. See `docs/architecture.md` for the full breakdown.
+**Three-layer ingestion in one paragraph:** WHOOP webhooks pre-warm the data store in real time. A reconciliation poller catches missed webhooks (WHOOP's docs are explicit that webhook delivery is not guaranteed). An on-open synchronous pull is the last-resort fallback. All three paths feed the same per-type ingestion handler (recovery, sleep, workout) — same idempotency, same logs, same code path. See `docs/architecture.md` for the full breakdown. The Strava session brief mirrors this pattern for its direct API integration.
 
 ---
 
@@ -77,16 +65,21 @@ somacore/
 ├── docs/
 │   ├── architecture.md          ← full architecture picture
 │   ├── conventions.md           ← code style + patterns
-│   ├── phase-1-scope.md         ← committed scope, exit criteria
+│   ├── phase-1-scope.md         ← phase-1 scope + exit criteria (historical; phase 1 exited)
+│   ├── track-d-decision-pack.md ← Track D rollup: comparison table, gates, sequencing
+│   ├── session-*.md             ← promoted session briefs (ship-worthy plans)
+│   ├── agent-*.md               ← Tai-authored persona + bounds for the SomaCore AI
+│   ├── privacy-data-handling.md ← what we send to Anthropic; Tai signs off on changes
 │   ├── runbook.md               ← ops: deploy, rotate, debug
-│   ├── schema/                  ← phase-1 SQL schema spec + design notes
+│   ├── schema/                  ← SQL schema spec + design notes
+│   ├── seeds/                   ← research briefs: seed → research pass → promote or defer
 │   └── decisions/               ← ADRs
 ├── src/
 │   ├── SomaCore.sln
 │   ├── SomaCore.Domain/         ← entities + enum-like constants, no I/O deps
 │   ├── SomaCore.Infrastructure/ ← EF Core DbContext, configurations, migrations, Postgres provider
 │   ├── SomaCore.Api/            ← ASP.NET Core minimal API (entry point)
-│   └── SomaCore.IngestionJobs/  ← Container Apps Jobs entry point (stub in phase 1)
+│   └── SomaCore.IngestionJobs/  ← Container Apps Jobs entry point (reconciliation poller, live)
 ├── tests/
 │   ├── SomaCore.UnitTests/      ← xUnit + FluentAssertions + NSubstitute
 │   └── SomaCore.IntegrationTests/  ← Testcontainers Postgres
@@ -133,7 +126,7 @@ Full conventions in `docs/conventions.md`. The non-negotiables:
 
 Things to **always** do in this repo:
 
-- **Read `docs/phase-1-scope.md` before adding a feature.** If it's not in scope, surface that before writing code.
+- **Check `docs/track-d-decision-pack.md` and the relevant `docs/session-*.md` brief before adding a feature.** If no promoted session brief or ADR covers it, surface that before writing code.
 - **Run tests after non-trivial changes.** `dotnet test` from repo root.
 - **Update `CLAUDE.md`** when introducing a new pattern, library, or convention. The future-you reading this file should not be surprised by what they find in the codebase.
 - **Add an ADR** when making a decision that future-you might second-guess. Follow the template in `docs/decisions/README.md`. Keep them short.
@@ -144,7 +137,7 @@ Things to **never** do in this repo:
 
 - **Never commit secrets**, even placeholder ones. If you need a placeholder, use `__REPLACE_ME__` literally.
 - **Never add a new dependency without checking it in to a decision file.** A new NuGet package is a decision; record why.
-- **Never widen scope unilaterally.** The phase-1 fence is real. If something feels like it "obviously" belongs, write the ADR for the change, not the code.
+- **Never widen scope unilaterally.** The scope fence is real — today it's the promoted session briefs + ADRs, not `phase-1-scope.md`. If something feels like it "obviously" belongs, write the ADR (or amend the session brief) for the change, not the code.
 - **Never invent a parallel pattern.** If three classes do auth two different ways, pick one and refactor — don't add a third. Surface the ambiguity in CLAUDE.md if you can't pick.
 - **Never skip the HMAC validation on the webhook handler.** It is the difference between an authenticated endpoint and a DOS-by-design endpoint.
 - **Never store an OAuth token in the database.** Tokens go in Key Vault; the database stores secret names and refresh metadata only.
