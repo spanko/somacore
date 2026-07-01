@@ -130,7 +130,7 @@ Things to **always** do in this repo:
 - **Run tests after non-trivial changes.** `dotnet test` from repo root.
 - **Update `CLAUDE.md`** when introducing a new pattern, library, or convention. The future-you reading this file should not be surprised by what they find in the codebase.
 - **Add an ADR** when making a decision that future-you might second-guess. Follow the template in `docs/decisions/README.md`. Keep them short.
-- **Run `dotnet format`** before committing. (There is no CI yet — manual deploys, manual gates. Format discipline is on the committer.)
+- **Run `dotnet format`** before committing. CI (`.github/workflows/ci.yml`) runs format-check + build + test on every push to `main` and will fail on unformatted code. Deploys remain manual.
 - **Commit directly to `main`.** No feature branches (Adam's directive, 2026-06-24) — Adam opens/merges PRs himself when he wants one.
 
 Things to **never** do in this repo:

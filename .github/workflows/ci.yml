@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    # Testcontainers needs Docker; ubuntu-latest runners have it out of the box.
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 9
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Restore
+        run: dotnet restore src/SomaCore.sln
+
+      - name: Format check
+        run: dotnet format src/SomaCore.sln --verify-no-changes --no-restore
+
+      - name: Build
+        run: dotnet build src/SomaCore.sln --no-restore --configuration Release
+
+      - name: Test
+        run: dotnet test src/SomaCore.sln --no-build --configuration Release --logger "console;verbosity=normal"
