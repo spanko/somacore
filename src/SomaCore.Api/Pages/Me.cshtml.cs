@@ -181,11 +181,11 @@ public sealed class MeModel(
 
         WhoopBanner = whoop switch
         {
-            "connected"    => "WHOOP connected.",
-            "failed"       => "WHOOP connection failed. Please try again.",
-            "cancelled"    => "WHOOP authorization was cancelled.",
+            "connected" => "WHOOP connected.",
+            "failed" => "WHOOP connection failed. Please try again.",
+            "cancelled" => "WHOOP authorization was cancelled.",
             "disconnected" => "WHOOP disconnected.",
-            _              => null,
+            _ => null,
         };
 
         var adminCheck = await authorizationService.AuthorizeAsync(User, "Admin");
@@ -280,7 +280,7 @@ public sealed class MeModel(
         // that starts inside the recovery cycle window. Bounded query — only
         // runs if at least one recovery is missing a sleep id.
         var earliest = recoveries.Min(r => r.CycleStartAt);
-        var latest   = recoveries.Max(r => r.CycleEndAt ?? r.CycleStartAt);
+        var latest = recoveries.Max(r => r.CycleEndAt ?? r.CycleStartAt);
 
         var cycleSleeps = recoveries.Any(r => !r.WhoopSleepId.HasValue)
             ? await dbContext.WhoopSleeps
@@ -296,13 +296,13 @@ public sealed class MeModel(
         return recoveries.Select(r =>
         {
             DateTimeOffset? sleepStart = null;
-            DateTimeOffset? sleepEnd   = null;
+            DateTimeOffset? sleepEnd = null;
 
             if (r.WhoopSleepId.HasValue
                 && sleepsByWhoopId.TryGetValue(r.WhoopSleepId.Value, out var match))
             {
                 sleepStart = match.StartAt;
-                sleepEnd   = match.EndAt;
+                sleepEnd = match.EndAt;
             }
             else if (r.CycleEndAt is DateTimeOffset cycleEnd)
             {
@@ -311,7 +311,7 @@ public sealed class MeModel(
                 if (fallback is not null)
                 {
                     sleepStart = fallback.StartAt;
-                    sleepEnd   = fallback.EndAt;
+                    sleepEnd = fallback.EndAt;
                 }
             }
 

@@ -30,7 +30,7 @@ internal static class AgentInputSnapshotBuilder
         DateTimeOffset asOfUtc,
         CancellationToken ct)
     {
-        var since7d  = asOfUtc.AddDays(-7);
+        var since7d = asOfUtc.AddDays(-7);
         var since14d = asOfUtc.AddDays(-14);
 
         // Pull more rows than we display because we dedupe in memory the
@@ -43,8 +43,13 @@ internal static class AgentInputSnapshotBuilder
             .Take(28) // 7 cycles × up to 4 dup-rows seen in production
             .Select(r => new
             {
-                r.WhoopCycleId, r.CycleStartAt, r.ScoreState,
-                r.RecoveryScore, r.HrvRmssdMilli, r.RestingHeartRate, r.IngestedAt,
+                r.WhoopCycleId,
+                r.CycleStartAt,
+                r.ScoreState,
+                r.RecoveryScore,
+                r.HrvRmssdMilli,
+                r.RestingHeartRate,
+                r.IngestedAt,
             })
             .ToListAsync(ct);
 
@@ -69,9 +74,15 @@ internal static class AgentInputSnapshotBuilder
             .Take(28)
             .Select(s => new
             {
-                s.WhoopSleepId, s.StartAt, s.EndAt, s.ScoreState, s.TimezoneOffset,
-                s.SleepPerformancePercentage, s.SleepEfficiencyPercentage,
-                s.TotalSleepTimeMilli, s.IngestedAt,
+                s.WhoopSleepId,
+                s.StartAt,
+                s.EndAt,
+                s.ScoreState,
+                s.TimezoneOffset,
+                s.SleepPerformancePercentage,
+                s.SleepEfficiencyPercentage,
+                s.TotalSleepTimeMilli,
+                s.IngestedAt,
             })
             .ToListAsync(ct);
 
@@ -103,8 +114,14 @@ internal static class AgentInputSnapshotBuilder
             .Take(40)
             .Select(w => new
             {
-                w.WhoopWorkoutId, w.StartAt, w.EndAt, w.SportName, w.ScoreState,
-                w.Strain, w.AverageHeartRate, w.IngestedAt,
+                w.WhoopWorkoutId,
+                w.StartAt,
+                w.EndAt,
+                w.SportName,
+                w.ScoreState,
+                w.Strain,
+                w.AverageHeartRate,
+                w.IngestedAt,
             })
             .ToListAsync(ct);
 

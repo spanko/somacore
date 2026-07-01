@@ -29,11 +29,11 @@ public static class PollerGating
     /// for the cold-start trade-off rationale.
     /// </summary>
     private const int ColdStartWakeStartHourUtc = 4;
-    private const int ColdStartWakeEndHourUtc   = 11;
+    private const int ColdStartWakeEndHourUtc = 11;
 
     /// <summary>Warm-mode window: typical wake minus 60 minutes ... plus 4 hours.</summary>
     private static readonly TimeSpan WarmWindowBefore = TimeSpan.FromMinutes(60);
-    private static readonly TimeSpan WarmWindowAfter  = TimeSpan.FromHours(4);
+    private static readonly TimeSpan WarmWindowAfter = TimeSpan.FromHours(4);
 
     /// <summary>
     /// A SCORED recovery is "for the current cycle" if its cycle ended within
@@ -110,7 +110,7 @@ public static class PollerGating
         var typicalWakeLocal = MedianWakeLocal(recentSleeps);
 
         var windowStart = typicalWakeLocal - WarmWindowBefore;
-        var windowEnd   = typicalWakeLocal + WarmWindowAfter;
+        var windowEnd = typicalWakeLocal + WarmWindowAfter;
         var localTimeOfDay = localNow.TimeOfDay;
 
         var inWindow = IsWithinDailyWindow(localTimeOfDay, windowStart, windowEnd);
@@ -153,7 +153,7 @@ public static class PollerGating
     {
         if (string.IsNullOrEmpty(s)) { sign = 1; return s; }
         if (s[0] == '-') { sign = -1; return s[1..]; }
-        if (s[0] == '+') { sign = 1;  return s[1..]; }
+        if (s[0] == '+') { sign = 1; return s[1..]; }
         sign = 1; return s;
     }
 
@@ -173,7 +173,7 @@ public static class PollerGating
         static long Norm(long ticks, long mod) => ((ticks % mod) + mod) % mod;
 
         var wrappedStart = TimeSpan.FromTicks(Norm(start.Ticks, oneDayTicks));
-        var wrappedEnd   = TimeSpan.FromTicks(Norm(end.Ticks,   oneDayTicks));
+        var wrappedEnd = TimeSpan.FromTicks(Norm(end.Ticks, oneDayTicks));
 
         if (wrappedStart <= wrappedEnd)
         {

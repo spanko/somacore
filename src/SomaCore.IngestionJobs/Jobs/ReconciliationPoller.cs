@@ -171,9 +171,9 @@ public sealed class ReconciliationPoller : IJob
                 connections = active.Count,
                 counters.Skipped,
                 recovery = new { counters.RecoveryInserted, counters.RecoveryUpdated, counters.RecoveryNoOp, counters.RecoverySkipped },
-                sleep    = new { counters.SleepInserted,    counters.SleepUpdated,    counters.SleepNoOp,    counters.SleepSkipped },
-                workout  = new { counters.WorkoutInserted,  counters.WorkoutUpdated,  counters.WorkoutNoOp,  counters.WorkoutSkipped },
-                failed   = counters.Failed,
+                sleep = new { counters.SleepInserted, counters.SleepUpdated, counters.SleepNoOp, counters.SleepSkipped },
+                workout = new { counters.WorkoutInserted, counters.WorkoutUpdated, counters.WorkoutNoOp, counters.WorkoutSkipped },
+                failed = counters.Failed,
             });
     }
 
@@ -193,8 +193,8 @@ public sealed class ReconciliationPoller : IJob
             externalConnectionId: connectionId,
             upstreamTraceId: null);
         IngestionTracing.RecordOutcome(rootSpan, "recovery", IngestionTracing.Outcomes.NotInvoked);
-        IngestionTracing.RecordOutcome(rootSpan, "sleep",    IngestionTracing.Outcomes.NotInvoked);
-        IngestionTracing.RecordOutcome(rootSpan, "workout",  IngestionTracing.Outcomes.NotInvoked);
+        IngestionTracing.RecordOutcome(rootSpan, "sleep", IngestionTracing.Outcomes.NotInvoked);
+        IngestionTracing.RecordOutcome(rootSpan, "workout", IngestionTracing.Outcomes.NotInvoked);
 
         // Recovery first — the handler's "no CycleId, no SleepId" branch
         // resolves the latest cycle internally. We don't pre-resolve here
@@ -284,8 +284,8 @@ public sealed class ReconciliationPoller : IJob
                 externalConnectionId: connectionId,
                 upstreamTraceId: null);
             IngestionTracing.RecordOutcome(rootSpan, "recovery", IngestionTracing.Outcomes.NotInvoked);
-            IngestionTracing.RecordOutcome(rootSpan, "sleep",    IngestionTracing.Outcomes.NotInvoked);
-            IngestionTracing.RecordOutcome(rootSpan, "workout",  IngestionTracing.Outcomes.NotInvoked);
+            IngestionTracing.RecordOutcome(rootSpan, "sleep", IngestionTracing.Outcomes.NotInvoked);
+            IngestionTracing.RecordOutcome(rootSpan, "workout", IngestionTracing.Outcomes.NotInvoked);
 
             var request = new WorkoutIngestionRequest(
                 ExternalConnectionId: connectionId,
@@ -315,23 +315,35 @@ public sealed class ReconciliationPoller : IJob
         public int WorkoutInserted, WorkoutUpdated, WorkoutNoOp, WorkoutSkipped;
         public int Failed;
 
-        public void TallyRecovery(RecoveryIngestionStatus s) { switch (s) {
-            case RecoveryIngestionStatus.Inserted:      RecoveryInserted++; break;
-            case RecoveryIngestionStatus.Updated:       RecoveryUpdated++;  break;
-            case RecoveryIngestionStatus.NoOp:          RecoveryNoOp++;     break;
-            case RecoveryIngestionStatus.SkippedNoData: RecoverySkipped++;  break;
-        } }
-        public void TallySleep(SleepIngestionStatus s) { switch (s) {
-            case SleepIngestionStatus.Inserted:      SleepInserted++; break;
-            case SleepIngestionStatus.Updated:       SleepUpdated++;  break;
-            case SleepIngestionStatus.NoOp:          SleepNoOp++;     break;
-            case SleepIngestionStatus.SkippedNoData: SleepSkipped++;  break;
-        } }
-        public void TallyWorkout(WorkoutIngestionStatus s) { switch (s) {
-            case WorkoutIngestionStatus.Inserted:      WorkoutInserted++; break;
-            case WorkoutIngestionStatus.Updated:       WorkoutUpdated++;  break;
-            case WorkoutIngestionStatus.NoOp:          WorkoutNoOp++;     break;
-            case WorkoutIngestionStatus.SkippedNoData: WorkoutSkipped++;  break;
-        } }
+        public void TallyRecovery(RecoveryIngestionStatus s)
+        {
+            switch (s)
+            {
+                case RecoveryIngestionStatus.Inserted: RecoveryInserted++; break;
+                case RecoveryIngestionStatus.Updated: RecoveryUpdated++; break;
+                case RecoveryIngestionStatus.NoOp: RecoveryNoOp++; break;
+                case RecoveryIngestionStatus.SkippedNoData: RecoverySkipped++; break;
+            }
+        }
+        public void TallySleep(SleepIngestionStatus s)
+        {
+            switch (s)
+            {
+                case SleepIngestionStatus.Inserted: SleepInserted++; break;
+                case SleepIngestionStatus.Updated: SleepUpdated++; break;
+                case SleepIngestionStatus.NoOp: SleepNoOp++; break;
+                case SleepIngestionStatus.SkippedNoData: SleepSkipped++; break;
+            }
+        }
+        public void TallyWorkout(WorkoutIngestionStatus s)
+        {
+            switch (s)
+            {
+                case WorkoutIngestionStatus.Inserted: WorkoutInserted++; break;
+                case WorkoutIngestionStatus.Updated: WorkoutUpdated++; break;
+                case WorkoutIngestionStatus.NoOp: WorkoutNoOp++; break;
+                case WorkoutIngestionStatus.SkippedNoData: WorkoutSkipped++; break;
+            }
+        }
     }
 }

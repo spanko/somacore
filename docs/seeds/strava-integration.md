@@ -2,7 +2,7 @@
 
 **Priority.** Third of Tai's four data-source seeds (2026-06-28). Likely the easiest of the four given Strava's mature developer API.
 
-**Status.** Seed / research pass owed.
+**Status.** → promoted to [`docs/session-strava-integration.md`](../session-strava-integration.md) (2026-07-01). Research pass: [`strava-integration-research.md`](strava-integration-research.md). Verdict was HYBRID — direct API primary + iOS-companion HealthKit fallback.
 
 ---
 

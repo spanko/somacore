@@ -2,7 +2,7 @@
 
 **Priority.** Second of Tai's four data-source seeds (2026-06-28). Delivers nutrition tracking to the coach, which unlocks the `meal_timing` and `macros` bounds categories with real signal instead of the coach guessing at defaults.
 
-**Status.** Seed / research pass owed.
+**Status.** → promoted to [`docs/session-myfitnesspal-integration.md`](../session-myfitnesspal-integration.md) (2026-07-01). Research pass: [`myfitnesspal-integration-research.md`](myfitnesspal-integration-research.md). Note: the "via Apple Health bridge" framing below was researched and inverted — the bridge requires our own iOS app, which Adam greenlit 2026-07-01 (two native apps; Flutter off the table).
 
 **Constraint that reshapes everything.** Tai specifically said "MyFitnessPal food journal **via Apple Health bridge**." Apple Health is iOS-only, and we currently have no mobile client — dev is web + Container Apps. This seed's first job is to say whether the Apple Health path is actually viable on our current architecture, and if not, what the alternatives are.
 

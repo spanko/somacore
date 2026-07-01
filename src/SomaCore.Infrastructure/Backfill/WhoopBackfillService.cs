@@ -297,8 +297,8 @@ public sealed class WhoopBackfillService(
             externalConnectionId: connectionId,
             upstreamTraceId: null);
         IngestionTracing.RecordOutcome(root, "recovery", IngestionTracing.Outcomes.NotInvoked);
-        IngestionTracing.RecordOutcome(root, "sleep",    IngestionTracing.Outcomes.NotInvoked);
-        IngestionTracing.RecordOutcome(root, "workout",  IngestionTracing.Outcomes.NotInvoked);
+        IngestionTracing.RecordOutcome(root, "sleep", IngestionTracing.Outcomes.NotInvoked);
+        IngestionTracing.RecordOutcome(root, "workout", IngestionTracing.Outcomes.NotInvoked);
         return root;
     }
 
@@ -360,24 +360,36 @@ public sealed class WhoopBackfillService(
         public int FailedEntities;
         public string? FirstError;
 
-        public void TallyRecovery(RecoveryIngestionStatus s) { switch (s) {
-            case RecoveryIngestionStatus.Inserted: RecoveriesInserted++; break;
-            case RecoveryIngestionStatus.Updated:  RecoveriesUpdated++;  break;
-            case RecoveryIngestionStatus.NoOp:     RecoveriesNoOp++;     break;
-            case RecoveryIngestionStatus.SkippedNoData: /* not counted; no insert happened */ break;
-        } }
-        public void TallySleep(SleepIngestionStatus s) { switch (s) {
-            case SleepIngestionStatus.Inserted: SleepsInserted++; break;
-            case SleepIngestionStatus.Updated:  SleepsUpdated++;  break;
-            case SleepIngestionStatus.NoOp:     SleepsNoOp++;     break;
-            case SleepIngestionStatus.SkippedNoData: break;
-        } }
-        public void TallyWorkout(WorkoutIngestionStatus s) { switch (s) {
-            case WorkoutIngestionStatus.Inserted: WorkoutsInserted++; break;
-            case WorkoutIngestionStatus.Updated:  WorkoutsUpdated++;  break;
-            case WorkoutIngestionStatus.NoOp:     WorkoutsNoOp++;     break;
-            case WorkoutIngestionStatus.SkippedNoData: break;
-        } }
+        public void TallyRecovery(RecoveryIngestionStatus s)
+        {
+            switch (s)
+            {
+                case RecoveryIngestionStatus.Inserted: RecoveriesInserted++; break;
+                case RecoveryIngestionStatus.Updated: RecoveriesUpdated++; break;
+                case RecoveryIngestionStatus.NoOp: RecoveriesNoOp++; break;
+                case RecoveryIngestionStatus.SkippedNoData: /* not counted; no insert happened */ break;
+            }
+        }
+        public void TallySleep(SleepIngestionStatus s)
+        {
+            switch (s)
+            {
+                case SleepIngestionStatus.Inserted: SleepsInserted++; break;
+                case SleepIngestionStatus.Updated: SleepsUpdated++; break;
+                case SleepIngestionStatus.NoOp: SleepsNoOp++; break;
+                case SleepIngestionStatus.SkippedNoData: break;
+            }
+        }
+        public void TallyWorkout(WorkoutIngestionStatus s)
+        {
+            switch (s)
+            {
+                case WorkoutIngestionStatus.Inserted: WorkoutsInserted++; break;
+                case WorkoutIngestionStatus.Updated: WorkoutsUpdated++; break;
+                case WorkoutIngestionStatus.NoOp: WorkoutsNoOp++; break;
+                case WorkoutIngestionStatus.SkippedNoData: break;
+            }
+        }
 
         public BackfillSummary ToSummary(TimeSpan duration) => new(
             RecoveriesInserted, RecoveriesUpdated, RecoveriesNoOp,

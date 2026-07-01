@@ -65,10 +65,20 @@ public sealed class AgentModel(
                   u => u.Id,
                   (a, u) => new
                   {
-                      a.Id, a.UserId, a.CreatedAt, a.ModelId, a.TodaysRead,
-                      a.ActionsJson, a.InputSnapshot,
-                      a.InputTokens, a.CachedInputTokens, a.OutputTokens,
-                      a.CostEstimateUsd, a.DurationMs, a.ErrorMessage, a.TraceId,
+                      a.Id,
+                      a.UserId,
+                      a.CreatedAt,
+                      a.ModelId,
+                      a.TodaysRead,
+                      a.ActionsJson,
+                      a.InputSnapshot,
+                      a.InputTokens,
+                      a.CachedInputTokens,
+                      a.OutputTokens,
+                      a.CostEstimateUsd,
+                      a.DurationMs,
+                      a.ErrorMessage,
+                      a.TraceId,
                       UserEmail = u.Email,
                   })
             .OrderByDescending(x => x.CreatedAt)

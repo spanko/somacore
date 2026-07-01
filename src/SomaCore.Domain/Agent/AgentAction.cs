@@ -36,31 +36,31 @@ public sealed record AgentAction(
 public static class AgentActionCategory
 {
     /// <summary>Training type and intensity (zone 2 vs heavy lift vs HIIT, etc.).</summary>
-    public const string TrainingIntensity     = "training_intensity";
+    public const string TrainingIntensity = "training_intensity";
     /// <summary>Workout duration and structure (e.g. "35 min easy + 5 strides").</summary>
-    public const string WorkoutStructure      = "workout_structure";
+    public const string WorkoutStructure = "workout_structure";
     /// <summary>Fueling and meal timing — pre/post-workout windows, fasting windows.</summary>
-    public const string MealTiming            = "meal_timing";
+    public const string MealTiming = "meal_timing";
     /// <summary>Macro targets — grams of protein, carbs, fat for the day or a specific window.</summary>
-    public const string Macros                = "macros";
+    public const string Macros = "macros";
     /// <summary>Hydration — volume + electrolyte adjustments.</summary>
-    public const string Hydration             = "hydration";
+    public const string Hydration = "hydration";
     /// <summary>Caffeine timing — when to take it, when to cut it off.</summary>
-    public const string CaffeineTiming        = "caffeine_timing";
+    public const string CaffeineTiming = "caffeine_timing";
     /// <summary>Sleep timing and pressure — bedtime, wake target, nap windows.</summary>
-    public const string SleepTiming           = "sleep_timing";
+    public const string SleepTiming = "sleep_timing";
     /// <summary>Recovery protocols — sauna, cold, light movement, breath work.</summary>
-    public const string RecoveryProtocols     = "recovery_protocols";
+    public const string RecoveryProtocols = "recovery_protocols";
     /// <summary>Stress and readiness signals — pacing the day around HRV/RHR signal.</summary>
-    public const string Stress                = "stress";
+    public const string Stress = "stress";
     /// <summary>Symptom-informed plan adjustments — modifying the plan when subjective symptoms diverge from the data.</summary>
-    public const string SymptomAdjustment     = "symptom_adjustment";
+    public const string SymptomAdjustment = "symptom_adjustment";
     /// <summary>
     /// Supplement reminders and food guidance sourced directly from a
     /// user-uploaded lab result. Requires a non-null <see cref="AgentAction.Source"/>
     /// referencing the lab document. Validator enforces.
     /// </summary>
-    public const string SupplementsFromLabs   = "supplements_from_labs";
+    public const string SupplementsFromLabs = "supplements_from_labs";
 
     public static IReadOnlyCollection<string> All { get; } = new[]
     {
@@ -85,7 +85,7 @@ public static class AgentActionCategory
 public static class AgentActionSource
 {
     /// <summary>Generic best-practice protocol (zone 2 on low recovery, etc.).</summary>
-    public const string ProtocolBased    = "protocol_based";
+    public const string ProtocolBased = "protocol_based";
     /// <summary>Tailored to this user's WHOOP signal (their baseline, their trend).</summary>
     public const string UserDataInformed = "user_data_informed";
     // User-uploaded lab references look like "lab:<document-id>" or similar

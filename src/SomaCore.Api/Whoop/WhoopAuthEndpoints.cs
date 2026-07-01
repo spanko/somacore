@@ -21,8 +21,8 @@ public static class WhoopAuthEndpoints
     {
         var group = app.MapGroup("/auth/whoop").RequireAuthorization();
 
-        group.MapGet("/start",     StartAsync);
-        group.MapGet("/callback",  CallbackAsync);
+        group.MapGet("/start", StartAsync);
+        group.MapGet("/callback", CallbackAsync);
         group.MapPost("/disconnect", DisconnectAsync);
 
         return app;
@@ -190,10 +190,10 @@ public static class WhoopAuthEndpoints
         var metadata = new JsonObject
         {
             ["whoop_user_id"] = profile.UserId,
-            ["whoop_email"]   = profile.Email,
+            ["whoop_email"] = profile.Email,
         };
         if (!string.IsNullOrEmpty(profile.FirstName)) metadata["whoop_first_name"] = profile.FirstName;
-        if (!string.IsNullOrEmpty(profile.LastName))  metadata["whoop_last_name"]  = profile.LastName;
+        if (!string.IsNullOrEmpty(profile.LastName)) metadata["whoop_last_name"] = profile.LastName;
 
         var connection = new ExternalConnection
         {

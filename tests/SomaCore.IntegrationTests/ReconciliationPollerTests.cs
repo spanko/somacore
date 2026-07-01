@@ -1,25 +1,20 @@
 using System.Text.Json;
-
 using FluentAssertions;
-
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
-
 using NSubstitute;
-
 using SomaCore.Domain.Common;
 using SomaCore.Domain.ExternalConnections;
 using SomaCore.Domain.Users;
 using SomaCore.Domain.WhoopRecoveries;
-using SomaCore.IngestionJobs.Jobs;
 using SomaCore.Infrastructure.Observability;
 using SomaCore.Infrastructure.Persistence;
 using SomaCore.Infrastructure.Recovery;
 using SomaCore.Infrastructure.Sleep;
 using SomaCore.Infrastructure.Whoop;
 using SomaCore.Infrastructure.Workout;
+using SomaCore.IngestionJobs.Jobs;
 using SomaCore.IntegrationTests.Observability;
-
 using Testcontainers.PostgreSql;
 
 namespace SomaCore.IntegrationTests;

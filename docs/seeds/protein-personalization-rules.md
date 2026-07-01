@@ -2,7 +2,7 @@
 
 **Priority.** Tai flagged this as a **rules-engine concern**, not a today-fix. She was clear that the current coach output is right for what the coach can see; the personalization she wants requires inputs the coach doesn't have yet. This seed captures the shape of the input Track B will need.
 
-**Status.** Seed / research pass owed. Blocks nothing until Track B kicks off.
+**Status.** Research pass complete (2026-07-01) — input contract landed at [`protein-personalization-rules-research.md`](protein-personalization-rules-research.md). Not promoted to a session brief because Track B hasn't started; the research doc is Track B Session 1's design input. Blocks nothing until Track B kicks off.
 
 ---
 

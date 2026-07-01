@@ -81,7 +81,7 @@ public sealed class DailyAgentRouter : IDailyAgentService
         {
             AgentRoute.Live when _live is not null
                 => await _live.GenerateAsync(userId, cancellationToken),
-            _   => await _stub.GenerateAsync(userId, cancellationToken),
+            _ => await _stub.GenerateAsync(userId, cancellationToken),
         };
     }
 
@@ -94,7 +94,7 @@ public sealed class DailyAgentRouter : IDailyAgentService
         {
             AgentRoute.Live when _live is not null
                 => await _live.GetLatestAsync(userId, cancellationToken),
-            _   => await _stub.GetLatestAsync(userId, cancellationToken),
+            _ => await _stub.GetLatestAsync(userId, cancellationToken),
         };
 
         if (latest is null)

@@ -214,8 +214,8 @@ public class WhoopWorkoutIngestionHandlerTests : IAsyncLifetime
             upstreamTraceId: "trace-workout-test"))
         {
             IngestionTracing.RecordOutcome(rootScope, "recovery", IngestionTracing.Outcomes.NotInvoked);
-            IngestionTracing.RecordOutcome(rootScope, "sleep",    IngestionTracing.Outcomes.NotInvoked);
-            IngestionTracing.RecordOutcome(rootScope, "workout",  IngestionTracing.Outcomes.NotInvoked);
+            IngestionTracing.RecordOutcome(rootScope, "sleep", IngestionTracing.Outcomes.NotInvoked);
+            IngestionTracing.RecordOutcome(rootScope, "workout", IngestionTracing.Outcomes.NotInvoked);
 
             var result = await handler.IngestAsync(
                 new WorkoutIngestionRequest(_connectionId, IngestedVia.Webhook, workoutUuid, TraceId: "trace-workout-test"),

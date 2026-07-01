@@ -184,11 +184,11 @@ public sealed class LiveDailyAgentService : IDailyAgentService
                 "agent-voice-and-persona.md and agent-bounds.md to AgentDocs/.");
         }
 
-        var voice  = File.ReadAllText(voicePath);
+        var voice = File.ReadAllText(voicePath);
         var bounds = File.ReadAllText(boundsPath);
 
         var categories = string.Join(", ", AgentActionCategory.All);
-        var sources    = $"{AgentActionSource.ProtocolBased}, {AgentActionSource.UserDataInformed}";
+        var sources = $"{AgentActionSource.ProtocolBased}, {AgentActionSource.UserDataInformed}";
 
         var systemPrompt =
 $@"You are the SomaCore AI, a daily performance coach. The user-facing brief

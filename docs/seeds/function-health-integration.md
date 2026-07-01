@@ -2,7 +2,7 @@
 
 **Priority.** Highest of the four data-source seeds Tai raised 2026-06-28. She specifically named this the one she wants working next — it unlocks the `supplements_from_labs` category in `docs/agent-bounds.md` that is currently declared but has no ingestion surface behind it.
 
-**Status.** Seed / research pass owed.
+**Status.** → promoted to [`docs/session-function-health-integration.md`](../session-function-health-integration.md) (2026-06-30). Research pass: [`function-health-integration-research.md`](function-health-integration-research.md).
 
 ---
 

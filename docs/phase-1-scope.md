@@ -34,7 +34,7 @@ WHOOP recovery is the trigger event for the morning plan in our long-term archit
 - All three paths feed the same `IRecoveryIngestionHandler`
 
 ### User-facing
-- A server-rendered `/me` page (Razor or minimal Blazor — pick one in the first build session and add an ADR)
+- A server-rendered `/me` page (Razor Pages — decided, [ADR 0010](decisions/0010-razor-pages-for-me.md))
 - Mobile-friendly layout (CSS, not native)
 - Shows: today's recovery score, score_state badge, HRV (ms), RHR (bpm), 7-day mini-trend, ingestion provenance debug panel
 - Microsoft sign-in protected

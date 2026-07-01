@@ -41,7 +41,7 @@ public sealed class WhoopWebhookDrainer(
     ILogger<WhoopWebhookDrainer> logger)
     : BackgroundService
 {
-    private static readonly TimeSpan IdleDelay  = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan IdleDelay = TimeSpan.FromSeconds(2);
     private static readonly TimeSpan ErrorDelay = TimeSpan.FromSeconds(10);
     private const int BatchSize = 5;
 
@@ -182,8 +182,8 @@ public sealed class WhoopWebhookDrainer(
             externalConnectionId: refreshed.ExternalConnectionId.Value,
             upstreamTraceId: refreshed.SourceTraceId);
         IngestionTracing.RecordOutcome(rootSpan, "recovery", IngestionTracing.Outcomes.NotInvoked);
-        IngestionTracing.RecordOutcome(rootSpan, "sleep",    IngestionTracing.Outcomes.NotInvoked);
-        IngestionTracing.RecordOutcome(rootSpan, "workout",  IngestionTracing.Outcomes.NotInvoked);
+        IngestionTracing.RecordOutcome(rootSpan, "sleep", IngestionTracing.Outcomes.NotInvoked);
+        IngestionTracing.RecordOutcome(rootSpan, "workout", IngestionTracing.Outcomes.NotInvoked);
 
         try
         {

@@ -121,7 +121,7 @@ Full conventions in `docs/conventions.md`. The non-negotiables:
 
 1. **Async all the way.** Every I/O-bound method is `async Task<T>`. No `.Result`, no `.Wait()`, no `GetAwaiter().GetResult()`. If you find yourself reaching for one of these, stop and rethink.
 2. **Structured logging.** Use Serilog with structured properties: `_logger.LogInformation("Webhook received {EventType} for {WhoopUserId} with trace {TraceId}", ...)`. Never string-interpolate into log messages.
-3. **No secrets in code, ever.** Config via `Microsoft.Extensions.Configuration`, secrets via Key Vault references. The string `"client_secret"` should appear in zero `.cs` files.
+3. **No secret values in code, ever.** Config via `Microsoft.Extensions.Configuration`, secrets via Key Vault references. OAuth wire-protocol field *names* like `"client_secret"` are unavoidable in token-exchange code (`WhoopOAuthClient` uses them); the *values* must always come from configuration, never literals.
 4. **Idempotency by default.** Webhook handlers, ingestion jobs, and any retry-prone code path must dedupe by `trace_id` or equivalent before doing work. Assume every message will arrive at least twice.
 5. **EF Core for the schema, raw SQL when warranted.** Use EF Core for migrations and CRUD. Drop to Dapper or raw `NpgsqlCommand` for query-heavy paths where EF's generated SQL is wrong or slow. Don't fight EF — escape it.
 6. **Result types for expected failure.** Use a `Result<T>` pattern (or `OneOf<>`) for operations that can fail in known ways (token refresh failed, WHOOP returned 4xx). Throw exceptions only for unexpected failures.
@@ -137,8 +137,8 @@ Things to **always** do in this repo:
 - **Run tests after non-trivial changes.** `dotnet test` from repo root.
 - **Update `CLAUDE.md`** when introducing a new pattern, library, or convention. The future-you reading this file should not be surprised by what they find in the codebase.
 - **Add an ADR** when making a decision that future-you might second-guess. Follow the template in `docs/decisions/README.md`. Keep them short.
-- **Run `dotnet format`** before committing. CI will reject unformatted code.
-- **Use feature branches.** Branch name: `<type>/<short-desc>` — `feat/whoop-oauth`, `fix/webhook-dedup`, `chore/ef-migration-bump`.
+- **Run `dotnet format`** before committing. (There is no CI yet — manual deploys, manual gates. Format discipline is on the committer.)
+- **Commit directly to `main`.** No feature branches (Adam's directive, 2026-06-24) — Adam opens/merges PRs himself when he wants one.
 
 Things to **never** do in this repo:
 

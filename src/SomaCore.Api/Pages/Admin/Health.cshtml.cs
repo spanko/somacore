@@ -25,7 +25,7 @@ public sealed class HealthModel(SomaCoreDbContext dbContext) : PageModel
     {
         GeneratedAt = DateTimeOffset.UtcNow;
         var since24h = GeneratedAt.AddHours(-24);
-        var since7d  = GeneratedAt.AddDays(-7);
+        var since7d = GeneratedAt.AddDays(-7);
 
         // ---- Webhook counts (last 24h) ----
         var wh24 = await dbContext.WebhookEvents

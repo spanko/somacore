@@ -88,8 +88,8 @@ public class WhoopWebhookSignatureValidatorTests
         var v = NewValidator();
         var body = "{}"u8.ToArray();
 
-        v.Validate(null,        "1700000000000", body).IsSuccess.Should().BeFalse();
-        v.Validate("sig",       null,            body).IsSuccess.Should().BeFalse();
-        v.Validate("sig",       "not-a-number",  body).IsSuccess.Should().BeFalse();
+        v.Validate(null, "1700000000000", body).IsSuccess.Should().BeFalse();
+        v.Validate("sig", null, body).IsSuccess.Should().BeFalse();
+        v.Validate("sig", "not-a-number", body).IsSuccess.Should().BeFalse();
     }
 }

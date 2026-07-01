@@ -11,8 +11,8 @@ namespace SomaCore.Api.Whoop;
 
 public static class WhoopWebhookEndpoint
 {
-    public const string SignatureHeader  = "X-WHOOP-Signature";
-    public const string TimestampHeader  = "X-WHOOP-Signature-Timestamp";
+    public const string SignatureHeader = "X-WHOOP-Signature";
+    public const string TimestampHeader = "X-WHOOP-Signature-Timestamp";
 
     public static IEndpointRouteBuilder MapWhoopWebhookEndpoint(this IEndpointRouteBuilder app)
     {

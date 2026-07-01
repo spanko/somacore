@@ -2,7 +2,7 @@
 
 **Priority.** Fourth of Tai's four data-source seeds (2026-06-28). Sequenced last because Lumen historically has the most closed data model of the four sources; this seed's first job is to confirm whether integration is even possible before we invest in it.
 
-**Status.** Seed / research pass owed.
+**Status.** Research pass complete — verdict DEFER (2026-07-01), not promoted. See [`lumen-integration-research.md`](lumen-integration-research.md): no public API, no export path, HealthKit write-direction unconfirmed. A ~10-min on-device spike rides along with the MFP iOS-companion session; watchlist triggers in the research doc §5.
 
 ---
 

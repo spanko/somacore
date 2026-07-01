@@ -133,7 +133,7 @@ public class WhoopSleepIngestionHandlerTests : IAsyncLifetime
 
         var sleepUuid = Guid.NewGuid();
         var pending = ScoredSleep(sleepUuid) with { ScoreState = ScoreState.PendingScore, Score = null };
-        var scored  = ScoredSleep(sleepUuid);
+        var scored = ScoredSleep(sleepUuid);
 
         apiClient.GetSleepByCycleAsync("tok", 5050, Arg.Any<CancellationToken>())
             .Returns(Result<WhoopSleepPayload?>.Success(pending),

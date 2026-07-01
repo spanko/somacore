@@ -77,22 +77,22 @@ public sealed class AnthropicMessagesClient
 /// at default.
 /// </summary>
 public sealed record AnthropicMessageRequest(
-    [property: JsonPropertyName("model")]       string Model,
-    [property: JsonPropertyName("max_tokens")]  int MaxTokens,
-    [property: JsonPropertyName("system")]      string System,
-    [property: JsonPropertyName("messages")]    IReadOnlyList<AnthropicMessage> Messages,
-    [property: JsonPropertyName("tools")]       IReadOnlyList<AnthropicTool> Tools,
+    [property: JsonPropertyName("model")] string Model,
+    [property: JsonPropertyName("max_tokens")] int MaxTokens,
+    [property: JsonPropertyName("system")] string System,
+    [property: JsonPropertyName("messages")] IReadOnlyList<AnthropicMessage> Messages,
+    [property: JsonPropertyName("tools")] IReadOnlyList<AnthropicTool> Tools,
     [property: JsonPropertyName("tool_choice")] AnthropicToolChoice ToolChoice,
-    [property: JsonPropertyName("metadata")]    AnthropicMessageMetadata? Metadata = null,
+    [property: JsonPropertyName("metadata")] AnthropicMessageMetadata? Metadata = null,
     [property: JsonPropertyName("temperature")] double? Temperature = null);
 
 public sealed record AnthropicMessage(
-    [property: JsonPropertyName("role")]    string Role,
+    [property: JsonPropertyName("role")] string Role,
     [property: JsonPropertyName("content")] string Content);
 
 public sealed record AnthropicTool(
-    [property: JsonPropertyName("name")]         string Name,
-    [property: JsonPropertyName("description")]  string Description,
+    [property: JsonPropertyName("name")] string Name,
+    [property: JsonPropertyName("description")] string Description,
     [property: JsonPropertyName("input_schema")] JsonElement InputSchema);
 
 public sealed record AnthropicToolChoice(
@@ -103,24 +103,24 @@ public sealed record AnthropicMessageMetadata(
     [property: JsonPropertyName("user_id")] string UserId);
 
 public sealed record AnthropicMessageResponse(
-    [property: JsonPropertyName("id")]          string Id,
-    [property: JsonPropertyName("model")]       string Model,
+    [property: JsonPropertyName("id")] string Id,
+    [property: JsonPropertyName("model")] string Model,
     [property: JsonPropertyName("stop_reason")] string? StopReason,
-    [property: JsonPropertyName("content")]     IReadOnlyList<AnthropicContentBlock> Content,
-    [property: JsonPropertyName("usage")]       AnthropicUsage? Usage);
+    [property: JsonPropertyName("content")] IReadOnlyList<AnthropicContentBlock> Content,
+    [property: JsonPropertyName("usage")] AnthropicUsage? Usage);
 
 public sealed record AnthropicContentBlock(
-    [property: JsonPropertyName("type")]  string Type,
-    [property: JsonPropertyName("id")]    string? Id = null,
-    [property: JsonPropertyName("name")]  string? Name = null,
+    [property: JsonPropertyName("type")] string Type,
+    [property: JsonPropertyName("id")] string? Id = null,
+    [property: JsonPropertyName("name")] string? Name = null,
     [property: JsonPropertyName("input")] JsonElement? Input = null,
-    [property: JsonPropertyName("text")]  string? Text = null);
+    [property: JsonPropertyName("text")] string? Text = null);
 
 public sealed record AnthropicUsage(
-    [property: JsonPropertyName("input_tokens")]               int? InputTokens,
-    [property: JsonPropertyName("output_tokens")]              int? OutputTokens,
+    [property: JsonPropertyName("input_tokens")] int? InputTokens,
+    [property: JsonPropertyName("output_tokens")] int? OutputTokens,
     [property: JsonPropertyName("cache_creation_input_tokens")] int? CacheCreationInputTokens,
-    [property: JsonPropertyName("cache_read_input_tokens")]    int? CacheReadInputTokens);
+    [property: JsonPropertyName("cache_read_input_tokens")] int? CacheReadInputTokens);
 
 public sealed class AnthropicApiException : Exception
 {

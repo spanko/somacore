@@ -22,11 +22,11 @@ public sealed class WhoopOAuthClient(
     public string BuildAuthorizeUrl(string state)
     {
         var query = HttpUtility.ParseQueryString(string.Empty);
-        query["client_id"]     = _options.ClientId;
-        query["redirect_uri"]  = _options.RedirectUri;
+        query["client_id"] = _options.ClientId;
+        query["redirect_uri"] = _options.RedirectUri;
         query["response_type"] = "code";
-        query["scope"]         = _options.Scopes;
-        query["state"]         = state;
+        query["scope"] = _options.Scopes;
+        query["state"] = state;
         return $"{_options.AuthorizeUri}?{query}";
     }
 
@@ -36,10 +36,10 @@ public sealed class WhoopOAuthClient(
     {
         var form = new Dictionary<string, string>
         {
-            ["grant_type"]    = "authorization_code",
-            ["code"]          = code,
-            ["redirect_uri"]  = _options.RedirectUri,
-            ["client_id"]     = _options.ClientId,
+            ["grant_type"] = "authorization_code",
+            ["code"] = code,
+            ["redirect_uri"] = _options.RedirectUri,
+            ["client_id"] = _options.ClientId,
             ["client_secret"] = _options.ClientSecret,
         };
         return await PostTokenAsync(form, "code-exchange", cancellationToken);
@@ -51,10 +51,10 @@ public sealed class WhoopOAuthClient(
     {
         var form = new Dictionary<string, string>
         {
-            ["grant_type"]    = "refresh_token",
+            ["grant_type"] = "refresh_token",
             ["refresh_token"] = refreshToken,
-            ["scope"]         = _options.Scopes,
-            ["client_id"]     = _options.ClientId,
+            ["scope"] = _options.Scopes,
+            ["client_id"] = _options.ClientId,
             ["client_secret"] = _options.ClientSecret,
         };
         return await PostTokenAsync(form, "refresh", cancellationToken);

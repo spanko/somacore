@@ -95,8 +95,8 @@ public class WhoopBackfillServiceTests : IAsyncLifetime
     {
         var apiClient = BuildApiWithPayloads(
             recoveries: new[] { Recovery(cycleId: 100), Recovery(cycleId: 101) },
-            sleeps:     new[] { Sleep(), Sleep() },
-            workouts:   new[] { Workout(), Workout(), Workout() });
+            sleeps: new[] { Sleep(), Sleep() },
+            workouts: new[] { Workout(), Workout(), Workout() });
         var tokenCache = BuildTokenCache();
 
         var service = BuildService(apiClient, tokenCache);
@@ -138,8 +138,8 @@ public class WhoopBackfillServiceTests : IAsyncLifetime
     public async Task Rerun_over_same_window_is_idempotent_all_NoOp_and_no_new_rows()
     {
         var recoveries = new[] { Recovery(cycleId: 200) };
-        var sleeps     = new[] { Sleep() };
-        var workouts   = new[] { Workout() };
+        var sleeps = new[] { Sleep() };
+        var workouts = new[] { Workout() };
 
         var apiClient = BuildApiWithPayloads(recoveries, sleeps, workouts);
         var tokenCache = BuildTokenCache();
@@ -158,8 +158,8 @@ public class WhoopBackfillServiceTests : IAsyncLifetime
         var rowSnapshot = new
         {
             Recoveries = await _db.WhoopRecoveries.CountAsync(),
-            Sleeps     = await _db.WhoopSleeps.CountAsync(),
-            Workouts   = await _db.WhoopWorkouts.CountAsync(),
+            Sleeps = await _db.WhoopSleeps.CountAsync(),
+            Workouts = await _db.WhoopWorkouts.CountAsync(),
         };
 
         // Second run, same window, same payloads.
