@@ -1,6 +1,6 @@
 # Function Health integration — research pass
 
-**Status.** Research pass. Answers every open question in [`function-health-integration.md`](function-health-integration.md). Ready for review with Tai; not yet promotable to a session doc — sequencing decision (Option A vs B in Section 2) is Tai + Adam's call.
+**Status.** Research pass, PROMOTED. Answers every open question in [`function-health-integration.md`](function-health-integration.md). Sequencing decision made 2026-06-30 (Adam): Option A ships as the value-bearing layer, Option B layers on as the notification/trigger for A rather than as a runner-up. Promoted to [`docs/session-function-health-integration.md`](../session-function-health-integration.md) — that is the ship-worthy plan; this doc stays as the reference for why we made the choices.
 
 **Author.** Claude (research); adam_wengert reviewing.
 **Date.** 2026-06-30.
