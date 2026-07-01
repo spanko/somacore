@@ -49,7 +49,7 @@ WHOOP recovery is the trigger event for the morning plan in our long-term archit
 
 Do not build, do not stub, do not "while we're here" any of the following. Each is real product work, but is sequenced behind phase 1.
 
-- Flutter mobile app
+- Flutter mobile app — **permanently off the table** (decision 2026-07-01). Phase 2 companion work is **two native apps**: iOS (Swift, HealthKit) and Android (Kotlin, Health Connect). See the session briefs for the four Track D data-source sessions ([Function Health](session-function-health-integration.md), [MFP](session-myfitnesspal-integration.md), [Strava](session-strava-integration.md), and the pending [Lumen](seeds/lumen-integration-research.md) / [protein-personalization](seeds/protein-personalization-rules-research.md) research passes) for how the companions land.
 - Sleep, workout, cycle ingestion (deferred to phase 2 — extend the handler pattern)
 - Apple Health, Oura, Strava, MyFitnessPal adapters
 - Rules engine

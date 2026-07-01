@@ -6,7 +6,7 @@
 
 **Framework decision made 2026-07-01.** Baseline = iOS companion app (direct HealthKit → our backend, no aggregator SDK) + CSV upload for non-iOS users. Aggregators (Terra, Junction) rejected on the comparison chart — see research doc §4. **This session's iOS-companion work also unlocks Strava + Lumen + Apple native + cycle-phase in future sessions**, per the coverage-multiplier finding. That amortization is a load-bearing part of the ROI story.
 
-**Scope-conflict flag.** [`docs/phase-1-scope.md`](phase-1-scope.md) currently lists "Flutter mobile app" as out-of-scope. A minimal Swift iOS companion is a different shape from a Flutter port, but this session ships mobile client code for the first time. Before this session starts: (a) Adam explicitly amends `phase-1-scope.md` OR (b) confirms this session is Phase 2, so the phase-1 fence doesn't apply. Either is fine; the ambiguity isn't.
+**Scope resolution (2026-07-01).** Adam confirmed: Flutter is permanently off the table; the companion is **two native apps** (iOS Swift / HealthKit + Android Kotlin / Health Connect). This session ships iOS-only because all three phase-2-alpha internal users are on iOS. Android becomes a follow-up session at whatever point we onboard non-iOS users. `phase-1-scope.md` updated 2026-07-01 to reflect this direction, and this whole session (and the sibling Track D sessions) is Phase 2, so the phase-1 fence doesn't apply.
 
 ---
 

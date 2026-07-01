@@ -6,6 +6,8 @@
 
 **Framework decision made 2026-07-01.** For Strava specifically, the comparison chart resolved HYBRID (not baseline-alone). Direct Strava API + webhook integration is the primary source for granularity; iOS-companion HealthKit reads are the secondary source for Apple Watch native workouts and fallback availability. See research doc §4 for the full chart.
 
+**Companion-app scope (2026-07-01).** Adam confirmed the companion is **two native apps** (iOS Swift / HealthKit + Android Kotlin / Health Connect), not Flutter. This session's HealthKit-side work is iOS-only because all three internal users are on iOS. Android extends when we onboard non-iOS users. This whole session is Phase 2; `phase-1-scope.md` updated 2026-07-01.
+
 **Prerequisites.**
 - MFP session (Track D Session 2) has shipped — iOS companion exists with HealthKit permission flow and `POST /api/ingest/healthkit` endpoint. This session extends that companion to workout types.
 - WHOOP ingestion is live and stable — this session reuses `WhoopAccessTokenCache`, ADR 0006 three-layer pattern, ADR 0011 trace contract, `webhook_events` drainer.
