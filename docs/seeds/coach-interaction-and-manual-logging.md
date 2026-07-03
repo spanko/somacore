@@ -2,7 +2,7 @@
 
 **Priority.** Adam, 2026-07-02: *"let's create the ability to interact with the LLM on the /me page - I want us to be able to upload data that aligns with the systems we're going to integrate - like nutrition and exercise."*
 
-**Status.** Research pass complete (2026-07-02) — see [`coach-interaction-and-manual-logging-research.md`](coach-interaction-and-manual-logging-research.md). Recommendation: two phases — quick-log (manual entry via one-line extraction + confirm) ships first at ~1 session with one small Tai gate; card-conversation is designed but waits on Tai's voice addendum + cost telemetry. Awaiting Adam's read before promotion.
+**Status.** Phase 1 → promoted to [`docs/session-quick-log.md`](../session-quick-log.md) (2026-07-02, Adam: "proceed as recommended"). Phase 2 (card conversation) designed in [`coach-interaction-and-manual-logging-research.md`](coach-interaction-and-manual-logging-research.md) §3, deliberately unscheduled — gated on Tai's conversational voice addendum + cost telemetry.
 
 ---
 

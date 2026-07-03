@@ -165,6 +165,35 @@ New numbered item after the physiological input window:
 
 ---
 
-# One open question that spans all three parts
+# Part 4 — Quick-log: user-typed entries on /me (gates enabling the quick-log feature)
+
+**Added 2026-07-02.** The quick-log build (see [`session-quick-log.md`](session-quick-log.md)) ships with the feature flagged OFF; this part's sign-off flips it on.
+
+## 4a. Addition to Section D.1 (what gets sent)
+
+> **User-typed quick-log lines.** When the user submits a line in the "tell the coach something" box on `/me` (e.g. *"lunch: chicken bowl, ~50g protein"*), that text is sent to Anthropic once to extract a structured entry. The user then reviews and confirms the extraction before anything is stored; confirmed entries and notes subsequently appear in the daily-card input snapshot like any other user data. **We cannot pre-filter what a user chooses to type** — this is the first input surface whose content we don't construct. The input box carries an inline notice: *"What you type here is processed by our AI provider — same rules as your card data: never used for training, no identifiers attached."*
+
+## 4b. What does NOT change
+
+- No identifiers attached (same anonymous internal reference as all invocations).
+- Same Anthropic Commercial Terms posture (Section D.3) — no training, transient processing.
+- Extraction invocations are logged in `agent_invocations` like card invocations, same retention posture.
+- Nothing persists without the user's explicit Confirm; discarded extractions leave only the invocation log row (which contains the typed line, per E.1's input-snapshot posture).
+
+## 4c. Storage
+
+- Confirmed meals → `mfp_food_entries` (`source='manual'`); workouts → `healthkit_workouts` (`source_bundle_id='manual'`); notes → `user_notes`. All cascade on account deletion; all user-deletable individually from `/me`.
+- Notes are **visible memory**: shown on `/me` with a delete button, optionally auto-expiring ("traveling until Friday"). Deleting a note removes it from all future snapshots.
+
+## 4d. Review checkboxes
+
+- [ ] **User free text goes to Anthropic** for extraction and, once confirmed, in future card snapshots. This is user-authored content we can't pre-filter. Confirm the inline-notice approach is adequate disclosure.
+- [ ] **Discarded extractions still leave an invocation-log row containing the typed text** (consistent with how we log all invocations). Confirm, or require purging discarded-extraction rows.
+- [ ] **Notes-as-visible-memory** (4c): explicit, deletable, expiring. Confirm this is the memory posture you want.
+- [ ] **Confirm-before-persist** applies to every quick-log write. Confirm.
+
+---
+
+# One open question that spans all four parts
 
 **Does the `/me` disclosure block (Section D.6) need updating per-source, or does one sentence cover all sources?** Current draft thinking: the base disclosure grows to *"...from your last 7 days of WHOOP, nutrition, and workout data"* once those sources are live, and the lab-specific extension (F.7) appears only on cards that reference a lab. Tai to confirm the disclosure shape she wants.
