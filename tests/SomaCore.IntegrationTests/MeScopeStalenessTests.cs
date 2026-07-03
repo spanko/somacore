@@ -23,6 +23,7 @@ using SomaCore.Domain.ExternalConnections;
 using SomaCore.Domain.Users;
 using SomaCore.Infrastructure.Agent;
 using SomaCore.Infrastructure.Persistence;
+using SomaCore.Infrastructure.QuickLog;
 using SomaCore.Infrastructure.Recovery;
 using SomaCore.Infrastructure.Whoop;
 
@@ -179,8 +180,15 @@ public class MeScopeStalenessTests : IAsyncLifetime
         dailyAgent.GenerateAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns(Result<DailyAgentResponse>.Failure("stub disabled in test"));
 
+        // Quick-log is disabled in this test (Enabled defaults false), so the
+        // extraction/entry services never get called — plain substitutes.
+        var quickLogExtraction = Substitute.For<IQuickLogExtractionService>();
+        var quickLogEntries = Substitute.For<IQuickLogEntryService>();
+        var quickLogOptions = Options.Create(new QuickLogOptions());
+
         var model = new MeModel(_db, recoveryHandler,
-            NullLogger<MeModel>.Instance, authService, whoopOptions, dailyAgent);
+            NullLogger<MeModel>.Instance, authService, whoopOptions, dailyAgent,
+            quickLogExtraction, quickLogEntries, quickLogOptions);
 
         // Minimal PageContext so OnGetAsync can access User claims + HttpContext.
         var httpContext = new DefaultHttpContext

@@ -11,6 +11,7 @@ using SomaCore.Infrastructure.Backfill;
 using SomaCore.Infrastructure.Observability;
 using SomaCore.Infrastructure.Persistence;
 using SomaCore.Infrastructure.Persistence.Interceptors;
+using SomaCore.Infrastructure.QuickLog;
 using SomaCore.Infrastructure.Recovery;
 using SomaCore.Infrastructure.Secrets;
 using SomaCore.Infrastructure.Sleep;
@@ -138,6 +139,17 @@ public static class DependencyInjection
         }
 
         services.AddScoped<IDailyAgentService, DailyAgentRouter>();
+
+        // Quick-log (session-quick-log.md). The extraction service is always
+        // registered; it no-ops with a Failure when QuickLog:Enabled=false
+        // (privacy Part 4 gate) or when the Anthropic client isn't around —
+        // same nullable-dependency pattern as DailyAgentRouter's live arm.
+        services
+            .AddOptions<QuickLogOptions>()
+            .Bind(configuration.GetSection(QuickLogOptions.SectionName));
+        services.AddScoped<IQuickLogExtractionService, QuickLogExtractionService>();
+        services.AddScoped<IQuickLogEntryService, QuickLogEntryService>();
+
         return services;
     }
 

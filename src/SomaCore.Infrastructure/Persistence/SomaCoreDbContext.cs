@@ -2,8 +2,11 @@ using Microsoft.EntityFrameworkCore;
 
 using SomaCore.Domain.Agent;
 using SomaCore.Domain.ExternalConnections;
+using SomaCore.Domain.FoodEntries;
+using SomaCore.Domain.HealthKitWorkouts;
 using SomaCore.Domain.JobRuns;
 using SomaCore.Domain.OAuthAudit;
+using SomaCore.Domain.UserNotes;
 using SomaCore.Domain.Users;
 using SomaCore.Domain.WebhookEvents;
 using SomaCore.Domain.WhoopRecoveries;
@@ -36,6 +39,12 @@ public class SomaCoreDbContext : DbContext
     public DbSet<JobRun> JobRuns => Set<JobRun>();
 
     public DbSet<AgentInvocation> AgentInvocations => Set<AgentInvocation>();
+
+    public DbSet<FoodEntry> FoodEntries => Set<FoodEntry>();
+
+    public DbSet<HealthKitWorkout> HealthKitWorkouts => Set<HealthKitWorkout>();
+
+    public DbSet<UserNote> UserNotes => Set<UserNote>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

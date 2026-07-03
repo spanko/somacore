@@ -11,6 +11,7 @@ using SomaCore.Domain.ExternalConnections;
 using SomaCore.Domain.WhoopRecoveries;
 using SomaCore.Infrastructure.Agent;
 using SomaCore.Infrastructure.Persistence;
+using SomaCore.Infrastructure.QuickLog;
 using SomaCore.Infrastructure.Recovery;
 using SomaCore.Infrastructure.Whoop;
 
@@ -23,9 +24,19 @@ public sealed class MeModel(
     ILogger<MeModel> logger,
     IAuthorizationService authorizationService,
     IOptions<WhoopOptions> whoopOptions,
-    IDailyAgentService dailyAgent) : PageModel
+    IDailyAgentService dailyAgent,
+    IQuickLogExtractionService quickLogExtraction,
+    IQuickLogEntryService quickLogEntries,
+    IOptions<QuickLogOptions> quickLogOptions) : PageModel
 {
     private readonly WhoopOptions _whoopOptions = whoopOptions.Value;
+    private readonly QuickLogOptions _quickLogOptions = quickLogOptions.Value;
+
+    private static readonly System.Text.Json.JsonSerializerOptions DraftJsonOptions = new()
+    {
+        PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.SnakeCaseLower,
+        PropertyNameCaseInsensitive = true,
+    };
 
     /// <summary>
     /// On-open pull triggers when the latest recovery for the user is missing
@@ -78,6 +89,33 @@ public sealed class MeModel(
 
     /// <summary>True when this request forced an on-open pull (via <c>?force=true</c>).</summary>
     public bool ForcedOnOpenPull { get; private set; }
+
+    // ------------------------------------------------------------------
+    // Quick-log (session-quick-log.md)
+    // ------------------------------------------------------------------
+
+    /// <summary>Quick-log surface renders only when QuickLog:Enabled (Tai's privacy Part 4 gate).</summary>
+    public bool QuickLogEnabled => _quickLogOptions.Enabled;
+
+    public int QuickLogMaxChars => _quickLogOptions.MaxInputChars;
+
+    /// <summary>The extraction awaiting the user's Confirm, carried across the PRG redirect via TempData.</summary>
+    public QuickLogExtraction? PendingDraft { get; private set; }
+
+    /// <summary>Serialized <see cref="PendingDraft"/> for the confirm form's hidden field.</summary>
+    public string? PendingDraftJson { get; private set; }
+
+    /// <summary>The user's original line — round-tripped so Edit can refill the input box.</summary>
+    public string? PendingSourceText { get; private set; }
+
+    /// <summary>Pre-filled input value (set by the Edit action).</summary>
+    public string? QuickLogText { get; private set; }
+
+    public string? QuickLogBanner { get; private set; }
+
+    public string? QuickLogError { get; private set; }
+
+    public IReadOnlyList<LoggedItem> LoggedItems { get; private set; } = Array.Empty<LoggedItem>();
 
     public async Task OnGetAsync(
         [Microsoft.AspNetCore.Mvc.FromQuery] string? whoop,
@@ -190,6 +228,150 @@ public sealed class MeModel(
 
         var adminCheck = await authorizationService.AuthorizeAsync(User, "Admin");
         IsAdmin = adminCheck.Succeeded;
+
+        if (QuickLogEnabled && SomaCoreUserId is { } uid)
+        {
+            LoggedItems = await quickLogEntries.GetLoggedItemsAsync(uid, cancellationToken);
+
+            // Pending draft + banners arrive across the PRG redirect.
+            if (TempData["QuickLogDraft"] is string draftJson)
+            {
+                try
+                {
+                    PendingDraft = System.Text.Json.JsonSerializer
+                        .Deserialize<QuickLogExtraction>(draftJson, DraftJsonOptions);
+                    PendingDraftJson = draftJson;
+                    PendingSourceText = TempData["QuickLogSourceText"] as string;
+                }
+                catch (System.Text.Json.JsonException)
+                {
+                    PendingDraft = null;
+                }
+            }
+            QuickLogText = TempData["QuickLogText"] as string;
+            QuickLogBanner = TempData["QuickLogBanner"] as string;
+            QuickLogError = TempData["QuickLogError"] as string;
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Quick-log handlers. PRG throughout: every POST redirects back to /me
+    // and the pending draft / banners ride TempData. Nothing persists
+    // without the explicit Confirm post (privacy Part 4 / ADR 0012's
+    // no-autonomous-action commitment).
+    // ------------------------------------------------------------------
+
+    public async Task<Microsoft.AspNetCore.Mvc.IActionResult> OnPostQuickLogAsync(
+        string? quickLogText, CancellationToken cancellationToken)
+    {
+        var userId = await ResolveUserIdAsync(cancellationToken);
+        if (userId is null || !QuickLogEnabled)
+        {
+            return RedirectToPage();
+        }
+
+        var text = (quickLogText ?? "").Trim();
+        var extraction = await quickLogExtraction.ExtractAsync(userId.Value, text, cancellationToken);
+
+        if (!extraction.IsSuccess)
+        {
+            TempData["QuickLogError"] = extraction.Error;
+            TempData["QuickLogText"] = text;
+            return RedirectToPage();
+        }
+
+        if (extraction.Value!.EntryType == QuickLogEntryType.Unclassified)
+        {
+            TempData["QuickLogError"] = extraction.Value.Message
+                ?? "I couldn't tell what that was — try a meal, workout, or note.";
+            TempData["QuickLogText"] = text;
+            return RedirectToPage();
+        }
+
+        TempData["QuickLogDraft"] = System.Text.Json.JsonSerializer
+            .Serialize(extraction.Value, DraftJsonOptions);
+        TempData["QuickLogSourceText"] = text;
+        return RedirectToPage();
+    }
+
+    public async Task<Microsoft.AspNetCore.Mvc.IActionResult> OnPostQuickLogConfirmAsync(
+        string? draftJson, CancellationToken cancellationToken)
+    {
+        var userId = await ResolveUserIdAsync(cancellationToken);
+        if (userId is null || !QuickLogEnabled || string.IsNullOrWhiteSpace(draftJson))
+        {
+            return RedirectToPage();
+        }
+
+        QuickLogExtraction? draft;
+        try
+        {
+            draft = System.Text.Json.JsonSerializer
+                .Deserialize<QuickLogExtraction>(draftJson, DraftJsonOptions);
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            draft = null;
+        }
+        if (draft is null)
+        {
+            TempData["QuickLogError"] = "That entry couldn't be read back — try logging it again.";
+            return RedirectToPage();
+        }
+
+        // Re-validated inside ConfirmAsync — the hidden field is client
+        // input and gets the same range checks as a fresh extraction.
+        var result = await quickLogEntries.ConfirmAsync(
+            userId.Value, draft, HttpContext.TraceIdentifier, cancellationToken);
+
+        if (result.IsSuccess)
+        {
+            TempData["QuickLogBanner"] = result.Value;
+        }
+        else
+        {
+            TempData["QuickLogError"] = result.Error;
+        }
+        return RedirectToPage();
+    }
+
+    public async Task<Microsoft.AspNetCore.Mvc.IActionResult> OnPostQuickLogEditAsync(
+        string? sourceText, CancellationToken cancellationToken)
+    {
+        // "Edit" = refill the input with the original line so the user can
+        // rephrase. The draft is dropped; nothing was persisted.
+        var userId = await ResolveUserIdAsync(cancellationToken);
+        if (userId is not null && QuickLogEnabled)
+        {
+            TempData["QuickLogText"] = sourceText ?? "";
+        }
+        return RedirectToPage();
+    }
+
+    public async Task<Microsoft.AspNetCore.Mvc.IActionResult> OnPostQuickLogDeleteAsync(
+        string itemType, Guid itemId, CancellationToken cancellationToken)
+    {
+        var userId = await ResolveUserIdAsync(cancellationToken);
+        if (userId is not null && QuickLogEnabled)
+        {
+            var result = await quickLogEntries.DeleteAsync(userId.Value, itemType, itemId, cancellationToken);
+            TempData["QuickLogBanner"] = result.IsSuccess ? "Deleted." : result.Error;
+        }
+        return RedirectToPage();
+    }
+
+    private async Task<Guid?> ResolveUserIdAsync(CancellationToken ct)
+    {
+        if (!Guid.TryParse(User.GetObjectId(), out var entraOid))
+        {
+            return null;
+        }
+        var id = await dbContext.Users
+            .AsNoTracking()
+            .Where(u => u.EntraOid == entraOid)
+            .Select(u => (Guid?)u.Id)
+            .FirstOrDefaultAsync(ct);
+        return id;
     }
 
     // Recovery is joined to its underlying sleep two ways: (1) the recovery

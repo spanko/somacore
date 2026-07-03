@@ -5,6 +5,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="SomaCore.UnitTests" />
+    <InternalsVisibleTo Include="SomaCore.IntegrationTests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\SomaCore.Domain\SomaCore.Domain.csproj" />
   </ItemGroup>
 

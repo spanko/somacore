@@ -138,7 +138,7 @@ public sealed class LiveDailyAgentService : IDailyAgentService
 
         var latest = await db.AgentInvocations
             .AsNoTracking()
-            .Where(a => a.UserId == userId)
+            .Where(a => a.UserId == userId && a.Kind == AgentInvocationKinds.DailyCard)
             .OrderByDescending(a => a.CreatedAt)
             .FirstOrDefaultAsync(cancellationToken);
 
@@ -273,6 +273,7 @@ the tool call.";
         {
             Id = invocationId,
             UserId = userId,
+            Kind = AgentInvocationKinds.DailyCard,
             InputSnapshot = JsonDocument.Parse(snapshot.Json),
             TodaysRead = card.TodaysRead,
             ActionsJson = JsonDocument.Parse(JsonSerializer.Serialize(card.Actions)),
@@ -301,6 +302,7 @@ the tool call.";
         {
             Id = invocationId,
             UserId = userId,
+            Kind = AgentInvocationKinds.DailyCard,
             InputSnapshot = JsonDocument.Parse(snapshot.Json),
             TodaysRead = "",
             ActionsJson = JsonDocument.Parse("[]"),

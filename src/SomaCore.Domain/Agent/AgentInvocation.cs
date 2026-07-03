@@ -23,6 +23,16 @@ public class AgentInvocation : IHasTimestamps
     public Guid UserId { get; set; }
 
     /// <summary>
+    /// Discriminates what this invocation was for: 'daily_card' (the
+    /// default, and every row written before the column existed) or
+    /// 'quick_log_extraction' (session-quick-log.md). The daily-card
+    /// latest-row queries filter on this — without the filter, a fresh
+    /// extraction row would shadow the user's card and force a spurious
+    /// regeneration.
+    /// </summary>
+    public string Kind { get; set; } = AgentInvocationKinds.DailyCard;
+
+    /// <summary>
     /// What we sent the model. Includes the input window (e.g. last 7 days
     /// of recovery/sleep/workout), the time-of-day context, and the persona
     /// + bounds version. Stored as jsonb so we can analyze input drift over

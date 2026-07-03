@@ -20,6 +20,11 @@ public sealed class AgentInvocationConfiguration : IEntityTypeConfiguration<Agen
         builder.Property(a => a.UserId)
             .IsRequired();
 
+        // Default covers every pre-existing row: they were all daily cards.
+        builder.Property(a => a.Kind)
+            .IsRequired()
+            .HasDefaultValue(AgentInvocationKinds.DailyCard);
+
         builder.Property(a => a.InputSnapshot)
             .HasColumnType("jsonb")
             .IsRequired();

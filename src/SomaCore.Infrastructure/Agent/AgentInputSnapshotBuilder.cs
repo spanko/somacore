@@ -136,7 +136,39 @@ internal static class AgentInputSnapshotBuilder
                 SportName: w.SportName,
                 ScoreState: w.ScoreState,
                 Strain: w.Strain,
-                AvgHr: w.AverageHeartRate))
+                AvgHr: w.AverageHeartRate,
+                Source: "whoop"))
+            .ToList();
+
+        // Manually logged workouts (quick-log) join the same section, with
+        // source provenance so the coach can hedge honestly ("based on what
+        // you logged"). iOS-companion rows land here too when the Strava
+        // session ships.
+        var manualWorkouts = await db.HealthKitWorkouts
+            .AsNoTracking()
+            .Where(w => w.UserId == userId && w.StartedAt >= since14d)
+            .OrderByDescending(w => w.StartedAt)
+            .Take(10)
+            .Select(w => new
+            {
+                w.StartedAt,
+                w.ElapsedSeconds,
+                w.WorkoutType,
+                w.AverageHr,
+                w.SourceBundleId,
+            })
+            .ToListAsync(ct);
+        workouts = workouts
+            .Concat(manualWorkouts.Select(w => new WorkoutSnapshot(
+                Start: w.StartedAt,
+                End: w.StartedAt.AddSeconds(w.ElapsedSeconds),
+                SportName: w.WorkoutType,
+                ScoreState: "SCORED",
+                Strain: null,
+                AvgHr: w.AverageHr,
+                Source: w.SourceBundleId == "manual" ? "manual" : "healthkit")))
+            .OrderByDescending(w => w.Start)
+            .Take(14)
             .ToList();
 
         // Local time-of-day computed from the most recent sleep's TZ offset.
@@ -144,6 +176,71 @@ internal static class AgentInputSnapshotBuilder
         var localNow = asOfUtc.ToOffset(localOffset);
         var localTimeOfDay = localNow.ToString("HH:mm", CultureInfo.InvariantCulture);
 
+        var localToday = DateOnly.FromDateTime(localNow.DateTime);
+
+        // Nutrition (quick-log now; MFP integration later, same tables).
+        // Per privacy Section D.1 / draft Part 4: macro totals + meal-slot
+        // timing only — food_items (names) NEVER enter the snapshot.
+        var foodRows = await db.FoodEntries
+            .AsNoTracking()
+            .Where(f => f.UserId == userId && f.MealDate >= localToday.AddDays(-7))
+            .OrderByDescending(f => f.MealDate)
+            .Select(f => new
+            {
+                f.MealDate,
+                f.MealSlot,
+                f.Source,
+                f.LoggedAt,
+                f.Calories,
+                f.ProteinG,
+                f.CarbsG,
+                f.FatG,
+                f.FiberG,
+            })
+            .ToListAsync(ct);
+
+        var latestFoodEntries = foodRows
+            .Where(f => f.MealDate >= localToday.AddDays(-3))
+            .Select(f => new FoodEntrySnapshot(
+                MealDate: f.MealDate,
+                MealSlot: f.MealSlot,
+                LoggedAt: f.LoggedAt,
+                Calories: f.Calories,
+                ProteinG: f.ProteinG,
+                CarbsG: f.CarbsG,
+                FatG: f.FatG,
+                FiberG: f.FiberG,
+                Source: f.Source))
+            .ToList();
+
+        // Rollups computed in memory — the mfp_daily_rollups table is
+        // deferred to the MFP session (session-quick-log.md checklist §1).
+        var dailyMacroRollups = foodRows
+            .GroupBy(f => f.MealDate)
+            .OrderByDescending(g => g.Key)
+            .Select(g => new DailyMacroRollup(
+                Date: g.Key,
+                Calories: SumNullable(g.Select(f => f.Calories)),
+                ProteinG: SumNullable(g.Select(f => f.ProteinG)),
+                CarbsG: SumNullable(g.Select(f => f.CarbsG)),
+                FatG: SumNullable(g.Select(f => f.FatG)),
+                FiberG: SumNullable(g.Select(f => f.FiberG)),
+                MealsLogged: g.Count()))
+            .ToList();
+
+        // Active user notes — visible, deletable memory (privacy Part 4c).
+        var notes = await db.UserNotes
+            .AsNoTracking()
+            .Where(n => n.UserId == userId
+                     && (n.ActiveUntil == null || n.ActiveUntil >= localToday))
+            .OrderByDescending(n => n.CreatedAt)
+            .Take(10)
+            .Select(n => new UserNoteSnapshot(n.Category, n.Note, n.ActiveUntil, n.CreatedAt))
+            .ToListAsync(ct);
+
+        // Sections are omitted (not sent as empty arrays) when a user has no
+        // data — the coach shouldn't reason about "zero meals" when the truth
+        // is "hasn't logged anything yet".
         var snapshot = new
         {
             as_of_utc = asOfUtc,
@@ -152,6 +249,9 @@ internal static class AgentInputSnapshotBuilder
             recoveries,
             sleeps,
             workouts,
+            latest_food_entries = latestFoodEntries.Count > 0 ? latestFoodEntries : null,
+            daily_macro_rollups = dailyMacroRollups.Count > 0 ? dailyMacroRollups : null,
+            user_notes = notes.Count > 0 ? notes : null,
         };
 
         return new AgentInputSnapshot(JsonSerializer.Serialize(snapshot, JsonOptions));
@@ -189,5 +289,45 @@ internal static class AgentInputSnapshotBuilder
         string SportName,
         string ScoreState,
         decimal? Strain,
-        int? AvgHr);
+        int? AvgHr,
+        string Source);
+
+    private sealed record FoodEntrySnapshot(
+        DateOnly MealDate,
+        string MealSlot,
+        DateTimeOffset? LoggedAt,
+        decimal? Calories,
+        decimal? ProteinG,
+        decimal? CarbsG,
+        decimal? FatG,
+        decimal? FiberG,
+        string Source);
+
+    private sealed record DailyMacroRollup(
+        DateOnly Date,
+        decimal? Calories,
+        decimal? ProteinG,
+        decimal? CarbsG,
+        decimal? FatG,
+        decimal? FiberG,
+        int MealsLogged);
+
+    private sealed record UserNoteSnapshot(
+        string? Category,
+        string Note,
+        DateOnly? ActiveUntil,
+        DateTimeOffset CreatedAt);
+
+    private static decimal? SumNullable(IEnumerable<decimal?> values)
+    {
+        decimal? sum = null;
+        foreach (var v in values)
+        {
+            if (v is { } val)
+            {
+                sum = (sum ?? 0) + val;
+            }
+        }
+        return sum;
+    }
 }

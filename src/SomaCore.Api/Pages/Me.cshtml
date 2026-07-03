@@ -138,6 +138,110 @@
     </section>
 }
 
+@if (Model.QuickLogEnabled)
+{
+    <section class="card">
+        <h2>Tell the coach something</h2>
+        <p class="subtitle">
+            A meal, a workout, or context it can't see — "lunch: chicken bowl, ~50g protein",
+            "45 hard minutes on the bike", "knee's sore, traveling until Friday".
+        </p>
+
+        @if (Model.QuickLogBanner is not null)
+        {
+            <p class="banner-success" role="status"><span class="banner-text">@Model.QuickLogBanner</span></p>
+        }
+        @if (Model.QuickLogError is not null)
+        {
+            <p class="banner-warning" role="alert"><span class="banner-text">@Model.QuickLogError</span></p>
+        }
+
+        @if (Model.PendingDraft is not null)
+        {
+            <div class="quicklog-confirm">
+                <p><strong>Here's what I understood — confirm before it counts:</strong></p>
+                @if (Model.PendingDraft.Meal is { } meal)
+                {
+                    <p>
+                        <span class="badge">MEAL</span>
+                        @meal.MealDate.ToString("MMM d") · @meal.MealSlot
+                        @if (meal.Calories is { } cal) { <text> · @cal.ToString("0") cal</text> }
+                        @if (meal.ProteinG is { } pro) { <text> · @pro.ToString("0")g protein</text> }
+                        @if (meal.CarbsG is { } carb) { <text> · @carb.ToString("0")g carbs</text> }
+                        @if (meal.FatG is { } fat) { <text> · @fat.ToString("0")g fat</text> }
+                        @if (meal.FoodItems.Count > 0)
+                        {
+                            <text> · @string.Join(", ", meal.FoodItems.Select(i => i.Name))</text>
+                        }
+                    </p>
+                }
+                @if (Model.PendingDraft.Workout is { } workout)
+                {
+                    <p>
+                        <span class="badge">WORKOUT</span>
+                        @workout.WorkoutType · @(workout.ElapsedSeconds / 60) min
+                        · started @MountainTime.Format(workout.StartedAt)
+                        @if (workout.Intensity is { } intensity) { <text> · @intensity</text> }
+                        @if (workout.AverageHr is { } hr) { <text> · @hr bpm avg</text> }
+                    </p>
+                }
+                @if (Model.PendingDraft.Note is { } note)
+                {
+                    <p>
+                        <span class="badge">NOTE</span>
+                        @note.Note
+                        @if (note.Category is { } cat) { <text> · <code>@cat</code></text> }
+                        @if (note.ActiveUntil is { } until) { <text> · until @until.ToString("MMM d")</text> }
+                    </p>
+                }
+                <div class="quicklog-confirm-actions">
+                    <form method="post" asp-page-handler="QuickLogConfirm" class="inline-form">
+                        <input type="hidden" name="draftJson" value="@Model.PendingDraftJson" />
+                        <button type="submit" class="btn-primary">Confirm</button>
+                    </form>
+                    <form method="post" asp-page-handler="QuickLogEdit" class="inline-form">
+                        <input type="hidden" name="sourceText" value="@Model.PendingSourceText" />
+                        <button type="submit" class="btn-secondary">Edit</button>
+                    </form>
+                    <a href="/me" class="btn-secondary">Discard</a>
+                </div>
+            </div>
+        }
+        else
+        {
+            <form method="post" asp-page-handler="QuickLog" class="quicklog-form">
+                <input type="text" name="quickLogText" value="@Model.QuickLogText"
+                       maxlength="@Model.QuickLogMaxChars" required
+                       placeholder="What should the coach know?" />
+                <button type="submit" class="btn-primary">Log it</button>
+            </form>
+            <p class="subtitle">
+                What you type here is processed by our AI provider — same rules as your
+                card data: never used for training, no identifiers attached.
+            </p>
+        }
+
+        @if (Model.LoggedItems.Count > 0)
+        {
+            <h3>Logged by you</h3>
+            <ul class="quicklog-items">
+                @foreach (var item in Model.LoggedItems)
+                {
+                    <li>
+                        <span class="badge">@item.ItemType.ToUpperInvariant()</span>
+                        @item.Summary
+                        <form method="post" asp-page-handler="QuickLogDelete" class="inline-form">
+                            <input type="hidden" name="itemType" value="@item.ItemType" />
+                            <input type="hidden" name="itemId" value="@item.Id" />
+                            <button type="submit" class="btn-link" aria-label="Delete this entry">delete</button>
+                        </form>
+                    </li>
+                }
+            </ul>
+        }
+    </section>
+}
+
 @if (Model.RecentRecoveries.Count > 0)
 {
     <section class="card">

@@ -63,6 +63,7 @@ public sealed class StubDailyAgentService(
         var invocation = new AgentInvocation
         {
             UserId = userId,
+            Kind = AgentInvocationKinds.DailyCard,
             InputSnapshot = JsonDocument.Parse(inputSnapshot),
             TodaysRead = "Sample read — this is a scaffold of the daily card. The real SomaCore AI voice lands in a separate PR after Tai signs off on persona + bounds + privacy.",
             ActionsJson = JsonDocument.Parse(actionsJson),
@@ -91,7 +92,7 @@ public sealed class StubDailyAgentService(
     {
         var latest = await dbContext.AgentInvocations
             .AsNoTracking()
-            .Where(a => a.UserId == userId)
+            .Where(a => a.UserId == userId && a.Kind == AgentInvocationKinds.DailyCard)
             .OrderByDescending(a => a.CreatedAt)
             .FirstOrDefaultAsync(cancellationToken);
 

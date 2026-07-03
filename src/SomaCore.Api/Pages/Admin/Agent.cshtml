@@ -55,6 +55,10 @@
                                 {
                                     <span class="badge badge-scored">LIVE</span>
                                 }
+                                @if (r.Kind == SomaCore.Domain.Agent.AgentInvocationKinds.QuickLogExtraction)
+                                {
+                                    <span class="badge badge-pending">QUICK-LOG</span>
+                                }
                             </td>
                             <td>
                                 @(r.InputTokens?.ToString() ?? "—") /
