@@ -76,6 +76,9 @@ param anthropicEnabled bool = false
 @description('Anthropic model id (runtime config, not a documented commitment). Required when anthropicEnabled is true.')
 param anthropicModelId string = ''
 
+@description('Whether the quick-log surface on /me is enabled (session-quick-log.md). Gated on Tai signing privacy draft Part 4.')
+param quickLogEnabled bool = false
+
 @description('Whether to bind KV-backed app secrets (postgres connection string, web/whoop client secrets, anthropic API key) onto the Container App. Set true once KV secrets are populated and the image actually consumes them.')
 param wireKeyVaultSecrets bool = false
 
@@ -156,6 +159,10 @@ var staticEnv = [
   {
     name: 'Anthropic__ModelId'
     value: anthropicModelId
+  }
+  {
+    name: 'QuickLog__Enabled'
+    value: '${quickLogEnabled}'
   }
 ]
 

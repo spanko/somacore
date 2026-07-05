@@ -77,6 +77,9 @@ param anthropicEnabled bool = false
 @description('Anthropic model id (runtime config, not a documented commitment). Required when anthropicEnabled is true.')
 param anthropicModelId string = ''
 
+@description('Whether the quick-log surface on /me is enabled (session-quick-log.md). Gated on Tai signing privacy draft Part 4 — user-typed free text goes to Anthropic for extraction. Requires anthropicEnabled.')
+param quickLogEnabled bool = false
+
 // ----- naming derived from the prefix ----------------------------------------
 
 var workspaceName  = '${namingPrefix}-law'
@@ -194,6 +197,7 @@ module containerApps 'modules/containerApps.bicep' = {
     adminUserOids: adminUserOids
     anthropicEnabled: anthropicEnabled
     anthropicModelId: anthropicModelId
+    quickLogEnabled: quickLogEnabled
   }
   dependsOn: [
     pgConnectionStringSecret
