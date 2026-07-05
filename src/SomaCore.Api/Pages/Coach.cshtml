@@ -28,17 +28,23 @@
 {
     <section class="card">
         <h2>Log something</h2>
-        <div class="log-tabs-wrap">
+        @* The radios MUST be direct siblings of .log-tabs and .log-panels —
+           the checked-state CSS (#tab-X:checked ~ .log-panels #panel-X)
+           only works across siblings. Verified in-browser 2026-07-05. *@
+        <div class="log-widget">
+            <input type="radio" name="log-tab" id="tab-meal" checked />
+            <input type="radio" name="log-tab" id="tab-work" />
+            <input type="radio" name="log-tab" id="tab-note" />
+            @if (Model.ChatEnabled)
+            {
+                <input type="radio" name="log-tab" id="tab-doc" />
+            }
             <div class="log-tabs">
-                <input type="radio" name="log-tab" id="tab-meal" checked />
                 <label for="tab-meal">MEAL</label>
-                <input type="radio" name="log-tab" id="tab-work" />
                 <label for="tab-work">WORKOUT</label>
-                <input type="radio" name="log-tab" id="tab-note" />
                 <label for="tab-note">NOTE</label>
                 @if (Model.ChatEnabled)
                 {
-                    <input type="radio" name="log-tab" id="tab-doc" />
                     <label for="tab-doc">DOCUMENT</label>
                 }
             </div>

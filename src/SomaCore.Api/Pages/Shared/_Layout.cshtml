@@ -242,9 +242,11 @@
             background: var(--coach-soft);
             position: sticky; top: 0.5rem; z-index: 2;
         }
-        /* Structured input: radio-driven tabs, no JS. */
+        /* Structured input: radio-driven tabs, no JS. The radios live as
+           direct children of .log-widget so the sibling combinator can
+           reach both the labels and the panels. */
+        .log-widget > input[type="radio"] { position: absolute; opacity: 0; pointer-events: none; }
         .log-tabs { display: flex; gap: 0.4rem; flex-wrap: wrap; margin: 0 0 0.9rem; }
-        .log-tabs input[type="radio"] { position: absolute; opacity: 0; pointer-events: none; }
         .log-tabs label {
             padding: 0.35rem 0.8rem;
             border: 1px solid var(--card-border);
@@ -254,13 +256,21 @@
             font-family: var(--mono);
             letter-spacing: 0.04em;
         }
-        .log-tabs input:checked + label {
+        #tab-meal:checked ~ .log-tabs label[for="tab-meal"],
+        #tab-work:checked ~ .log-tabs label[for="tab-work"],
+        #tab-note:checked ~ .log-tabs label[for="tab-note"],
+        #tab-doc:checked  ~ .log-tabs label[for="tab-doc"] {
             border-color: var(--coach);
             background: var(--coach-soft);
             color: var(--coach);
             font-weight: 700;
         }
-        .log-tabs input:focus-visible + label { outline: 2px solid var(--coach); outline-offset: 2px; }
+        #tab-meal:focus-visible ~ .log-tabs label[for="tab-meal"],
+        #tab-work:focus-visible ~ .log-tabs label[for="tab-work"],
+        #tab-note:focus-visible ~ .log-tabs label[for="tab-note"],
+        #tab-doc:focus-visible  ~ .log-tabs label[for="tab-doc"] {
+            outline: 2px solid var(--coach); outline-offset: 2px;
+        }
         .log-panel { display: none; }
         #tab-meal:checked ~ .log-panels #panel-meal,
         #tab-work:checked ~ .log-panels #panel-work,

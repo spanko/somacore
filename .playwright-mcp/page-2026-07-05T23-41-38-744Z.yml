@@ -1,0 +1,11 @@
+- generic [ref=e2]:
+  - radio "MEAL" [checked]
+  - radio "WORKOUT"
+  - radio "NOTE"
+  - radio "DOCUMENT"
+  - generic [ref=e3]:
+    - generic [ref=e4] [cursor=pointer]: MEAL
+    - generic [ref=e5] [cursor=pointer]: WORKOUT
+    - generic [ref=e6] [cursor=pointer]: NOTE
+    - generic [ref=e7] [cursor=pointer]: DOCUMENT
+  - textbox "meal panel input" [ref=e10]
