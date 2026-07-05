@@ -191,6 +191,172 @@
             background: var(--card-bg);
         }
         .admin-table td .subtitle { font-size: 0.78rem; margin: 0.15rem 0 0; }
+
+        /* ------------------------------------------------------------------
+           Coach surfaces (/me/coach) — the training-log design language.
+           Evidence chips carry a monospace data voice; the coach speaks
+           flush-left behind a teal rule, like an annotation in the margin
+           of a training log. Teal is the coach's color — distinct from the
+           product-blue accent and the score badges.
+           ------------------------------------------------------------------ */
+        :root {
+            --coach: #0d9488;
+            --coach-soft: color-mix(in srgb, #0d9488 9%, Canvas);
+            --coach-border: color-mix(in srgb, #0d9488 35%, Canvas);
+            --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, monospace;
+        }
+        .chip {
+            display: flex;
+            align-items: baseline;
+            gap: 0.6rem;
+            padding: 0.55rem 0.75rem;
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            margin: 0 0 0.5rem;
+            background: var(--card-bg);
+            font-family: var(--mono);
+            font-size: 0.83rem;
+        }
+        .chip-tag {
+            font-weight: 700;
+            font-size: 0.7rem;
+            letter-spacing: 0.08em;
+            flex-shrink: 0;
+        }
+        .chip-tag-meal { color: #c1812a; }
+        .chip-tag-work { color: #16a34a; }
+        .chip-tag-note { color: var(--muted); }
+        .chip-tag-doc  { color: var(--accent); }
+        .chip-body { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+        .chip-when { color: var(--muted); font-size: 0.72rem; flex-shrink: 0; }
+        .chip-actions { display: flex; gap: 0.6rem; flex-shrink: 0; }
+        .chip-actions .btn-link,
+        .btn-link {
+            background: none; border: none; padding: 0; cursor: pointer;
+            font-family: inherit; font-size: 0.78rem;
+            color: var(--coach); text-decoration: underline;
+        }
+        .btn-link:hover { filter: brightness(1.2); }
+        .chip--pinned {
+            border-color: var(--coach-border);
+            background: var(--coach-soft);
+            position: sticky; top: 0.5rem; z-index: 2;
+        }
+        /* Structured input: radio-driven tabs, no JS. */
+        .log-tabs { display: flex; gap: 0.4rem; flex-wrap: wrap; margin: 0 0 0.9rem; }
+        .log-tabs input[type="radio"] { position: absolute; opacity: 0; pointer-events: none; }
+        .log-tabs label {
+            padding: 0.35rem 0.8rem;
+            border: 1px solid var(--card-border);
+            border-radius: 999px;
+            font-size: 0.83rem;
+            cursor: pointer;
+            font-family: var(--mono);
+            letter-spacing: 0.04em;
+        }
+        .log-tabs input:checked + label {
+            border-color: var(--coach);
+            background: var(--coach-soft);
+            color: var(--coach);
+            font-weight: 700;
+        }
+        .log-tabs input:focus-visible + label { outline: 2px solid var(--coach); outline-offset: 2px; }
+        .log-panel { display: none; }
+        #tab-meal:checked ~ .log-panels #panel-meal,
+        #tab-work:checked ~ .log-panels #panel-work,
+        #tab-note:checked ~ .log-panels #panel-note,
+        #tab-doc:checked  ~ .log-panels #panel-doc { display: block; }
+        .field-row { display: flex; gap: 0.6rem; flex-wrap: wrap; margin: 0 0 0.6rem; }
+        .field { display: flex; flex-direction: column; gap: 0.2rem; flex: 1; min-width: 8.5rem; }
+        .field > span { font-size: 0.75rem; color: var(--muted); letter-spacing: 0.03em; }
+        .field input, .field select, .quicklog-form input[type="text"], .thread-input input[type="text"] {
+            padding: 0.5rem 0.6rem;
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            background: var(--bg);
+            color: var(--fg);
+            font-family: inherit;
+            font-size: 0.95rem;
+        }
+        .field input:focus-visible, .thread-input input:focus-visible {
+            outline: 2px solid var(--coach); outline-offset: 1px;
+        }
+        .btn-coach {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 8px;
+            background: var(--coach);
+            color: white;
+            font-weight: 600;
+            font-family: inherit;
+            font-size: 0.95rem;
+            cursor: pointer;
+        }
+        .btn-coach:hover { filter: brightness(1.1); }
+        /* The conversation log. Coach = flush-left behind a teal rule (a
+           margin annotation); user = quiet right-aligned card. No bubbles. */
+        .thread { margin: 1rem 0; }
+        .msg { margin: 0 0 1rem; max-width: 92%; }
+        .msg-user {
+            margin-left: auto;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 10px;
+            padding: 0.6rem 0.85rem;
+            width: fit-content;
+        }
+        .msg-coach {
+            border-left: 3px solid var(--coach);
+            padding: 0.15rem 0 0.15rem 0.85rem;
+        }
+        .msg-coach.msg-refusal { border-left-color: #f59e0b; }
+        .msg-meta {
+            font-family: var(--mono);
+            font-size: 0.68rem;
+            color: var(--muted);
+            letter-spacing: 0.06em;
+            margin: 0 0 0.25rem;
+        }
+        .msg p { margin: 0; }
+        .thread-input { display: flex; gap: 0.5rem; margin-top: 1rem; }
+        .thread-input input { flex: 1; }
+        .turns-left {
+            font-family: var(--mono);
+            font-size: 0.72rem;
+            color: var(--muted);
+            margin-top: 0.4rem;
+        }
+        .quicklog-form { display: flex; gap: 0.5rem; }
+        .quicklog-form input[type="text"] { flex: 1; }
+        .quicklog-confirm {
+            border-left: 3px solid var(--coach);
+            padding: 0.3rem 0 0.3rem 0.85rem;
+            margin: 0.75rem 0;
+            animation: readback 0.25s ease-out;
+        }
+        .quicklog-confirm-actions { display: flex; gap: 0.6rem; margin-top: 0.6rem; align-items: center; }
+        .quicklog-items { list-style: none; padding: 0; margin: 0.5rem 0 0; }
+        .quicklog-items li {
+            display: flex; align-items: baseline; gap: 0.6rem;
+            padding: 0.4rem 0; border-bottom: 1px solid var(--card-border);
+            font-size: 0.9rem;
+        }
+        .quicklog-items li form { margin-left: auto; }
+        .banner-success {
+            padding: 0.6rem 0.9rem; border-radius: 8px;
+            background: color-mix(in srgb, var(--coach) 10%, Canvas);
+            border: 1px solid var(--coach-border);
+            margin: 0 0 1rem;
+        }
+        .inline-form { display: inline; }
+        @@keyframes readback {
+            from { opacity: 0; transform: translateY(4px); }
+            to   { opacity: 1; transform: none; }
+        }
+        @@media (prefers-reduced-motion: reduce) {
+            .quicklog-confirm { animation: none; }
+        }
     </style>
 </head>
 <body>

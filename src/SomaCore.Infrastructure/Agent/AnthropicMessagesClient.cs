@@ -86,9 +86,38 @@ public sealed record AnthropicMessageRequest(
     [property: JsonPropertyName("metadata")] AnthropicMessageMetadata? Metadata = null,
     [property: JsonPropertyName("temperature")] double? Temperature = null);
 
+/// <summary>
+/// Content is a string for plain-text messages (the daily card, quick-log,
+/// chat turns) or a list of content blocks for multimodal messages (PDF
+/// document extraction). System.Text.Json serializes the runtime type, so
+/// existing string call sites are unaffected.
+/// </summary>
 public sealed record AnthropicMessage(
     [property: JsonPropertyName("role")] string Role,
-    [property: JsonPropertyName("content")] string Content);
+    [property: JsonPropertyName("content")] object Content);
+
+/// <summary>A document content block for PDF ingestion (base64 source).</summary>
+public sealed record AnthropicDocumentBlock(
+    [property: JsonPropertyName("type")] string Type,
+    [property: JsonPropertyName("source")] AnthropicDocumentSource Source)
+{
+    public static AnthropicDocumentBlock Pdf(byte[] bytes) => new(
+        Type: "document",
+        Source: new AnthropicDocumentSource("base64", "application/pdf", Convert.ToBase64String(bytes)));
+}
+
+public sealed record AnthropicDocumentSource(
+    [property: JsonPropertyName("type")] string Type,
+    [property: JsonPropertyName("media_type")] string MediaType,
+    [property: JsonPropertyName("data")] string Data);
+
+/// <summary>A text content block, for pairing with document blocks.</summary>
+public sealed record AnthropicTextBlock(
+    [property: JsonPropertyName("type")] string Type,
+    [property: JsonPropertyName("text")] string Text)
+{
+    public static AnthropicTextBlock Of(string text) => new("text", text);
+}
 
 public sealed record AnthropicTool(
     [property: JsonPropertyName("name")] string Name,

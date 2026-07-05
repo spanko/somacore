@@ -80,6 +80,9 @@ param anthropicModelId string = ''
 @description('Whether the quick-log surface on /me is enabled (session-quick-log.md). Gated on Tai signing privacy draft Part 4 — user-typed free text goes to Anthropic for extraction. Requires anthropicEnabled.')
 param quickLogEnabled bool = false
 
+@description('Whether the coach conversation + document surfaces on /me/coach are enabled. Privacy draft Part 5. Requires anthropicEnabled.')
+param coachChatEnabled bool = false
+
 // ----- naming derived from the prefix ----------------------------------------
 
 var workspaceName  = '${namingPrefix}-law'
@@ -198,6 +201,7 @@ module containerApps 'modules/containerApps.bicep' = {
     anthropicEnabled: anthropicEnabled
     anthropicModelId: anthropicModelId
     quickLogEnabled: quickLogEnabled
+    coachChatEnabled: coachChatEnabled
   }
   dependsOn: [
     pgConnectionStringSecret

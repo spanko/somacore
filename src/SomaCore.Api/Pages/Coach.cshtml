@@ -1,0 +1,224 @@
+@page "/me/coach"
+@model SomaCore.Api.Pages.CoachModel
+@using SomaCore.Api.Time
+@{
+    ViewData["Title"] = "Coach";
+}
+
+<h1>Your coach</h1>
+<p class="subtitle">Log what the coach can't see, keep evidence on file, and talk it through. <a href="/me">← Back to today</a></p>
+
+@if (Model.Banner is not null)
+{
+    <p class="banner-success" role="status">@Model.Banner</p>
+}
+@if (Model.Error is not null)
+{
+    <p class="banner-warning" role="alert"><span class="banner-text">@Model.Error</span></p>
+}
+
+@if (!Model.LoggingEnabled && !Model.ChatEnabled)
+{
+    <section class="card">
+        <p>The coach surfaces aren't enabled in this environment yet.</p>
+    </section>
+}
+
+@if (Model.LoggingEnabled)
+{
+    <section class="card">
+        <h2>Log something</h2>
+        <div class="log-tabs-wrap">
+            <div class="log-tabs">
+                <input type="radio" name="log-tab" id="tab-meal" checked />
+                <label for="tab-meal">MEAL</label>
+                <input type="radio" name="log-tab" id="tab-work" />
+                <label for="tab-work">WORKOUT</label>
+                <input type="radio" name="log-tab" id="tab-note" />
+                <label for="tab-note">NOTE</label>
+                @if (Model.ChatEnabled)
+                {
+                    <input type="radio" name="log-tab" id="tab-doc" />
+                    <label for="tab-doc">DOCUMENT</label>
+                }
+            </div>
+
+            <div class="log-panels">
+                <form method="post" asp-page-handler="LogMeal" class="log-panel" id="panel-meal">
+                    <div class="field-row">
+                        <label class="field"><span>Day</span>
+                            <input type="date" name="mealDate" value="@DateTime.UtcNow.ToString("yyyy-MM-dd")" required /></label>
+                        <label class="field"><span>Meal</span>
+                            <select name="mealSlot">
+                                <option value="breakfast">Breakfast</option>
+                                <option value="lunch">Lunch</option>
+                                <option value="dinner">Dinner</option>
+                                <option value="snack">Snack</option>
+                                <option value="other">Other</option>
+                            </select></label>
+                    </div>
+                    <div class="field-row">
+                        <label class="field"><span>Calories</span>
+                            <input type="number" name="calories" min="0" max="20000" step="1" placeholder="—" /></label>
+                        <label class="field"><span>Protein (g)</span>
+                            <input type="number" name="protein" min="0" max="1000" step="1" placeholder="—" /></label>
+                        <label class="field"><span>Carbs (g)</span>
+                            <input type="number" name="carbs" min="0" max="2000" step="1" placeholder="—" /></label>
+                        <label class="field"><span>Fat (g)</span>
+                            <input type="number" name="fat" min="0" max="1000" step="1" placeholder="—" /></label>
+                    </div>
+                    <div class="field-row">
+                        <label class="field"><span>What was it? (comma-separated, stays private — never sent to the AI)</span>
+                            <input type="text" name="items" maxlength="300" placeholder="chicken bowl, side salad" /></label>
+                    </div>
+                    <button type="submit" class="btn-coach">Log meal</button>
+                    <p class="hint-text">Only fill in what you know — a protein number alone still counts.</p>
+                </form>
+
+                <form method="post" asp-page-handler="LogWorkout" class="log-panel" id="panel-work">
+                    <div class="field-row">
+                        <label class="field"><span>Type</span>
+                            <input type="text" name="workoutType" maxlength="60" placeholder="run, ride, strength…" required /></label>
+                        <label class="field"><span>Started</span>
+                            <input type="datetime-local" name="startedAt" required /></label>
+                    </div>
+                    <div class="field-row">
+                        <label class="field"><span>Minutes</span>
+                            <input type="number" name="minutes" min="1" max="1440" step="1" required /></label>
+                        <label class="field"><span>Effort</span>
+                            <select name="intensity">
+                                <option value="">—</option>
+                                <option value="easy">Easy</option>
+                                <option value="moderate">Moderate</option>
+                                <option value="hard">Hard</option>
+                            </select></label>
+                        <label class="field"><span>Avg HR</span>
+                            <input type="number" name="avgHr" min="30" max="250" step="1" placeholder="—" /></label>
+                    </div>
+                    <button type="submit" class="btn-coach">Log workout</button>
+                </form>
+
+                <form method="post" asp-page-handler="LogNote" class="log-panel" id="panel-note">
+                    <div class="field-row">
+                        <label class="field"><span>What should the coach know?</span>
+                            <input type="text" name="note" maxlength="2000" placeholder="knee's sore after yesterday's run" required /></label>
+                    </div>
+                    <div class="field-row">
+                        <label class="field"><span>Kind</span>
+                            <select name="category">
+                                <option value="">—</option>
+                                <option value="symptom">Symptom</option>
+                                <option value="schedule">Schedule</option>
+                                <option value="context">Context</option>
+                            </select></label>
+                        <label class="field"><span>Forget after (optional)</span>
+                            <input type="date" name="activeUntil" /></label>
+                    </div>
+                    <button type="submit" class="btn-coach">Add note</button>
+                    <p class="hint-text">Notes show below and you can delete them anytime — nothing is remembered silently.</p>
+                </form>
+
+                @if (Model.ChatEnabled)
+                {
+                    <form method="post" asp-page-handler="UploadDocument" enctype="multipart/form-data" class="log-panel" id="panel-doc">
+                        <div class="field-row">
+                            <label class="field"><span>PDF, CSV, TXT or Markdown — up to 10 MB</span>
+                                <input type="file" name="file" accept=".pdf,.csv,.txt,.md,application/pdf,text/csv,text/plain" required /></label>
+                        </div>
+                        <button type="submit" class="btn-coach">Upload</button>
+                        <p class="hint-text">
+                            The file's contents are read once by our AI provider so the coach can
+                            discuss them — same rules as everything else: never used for training,
+                            no identifiers attached. PDFs take a few seconds.
+                        </p>
+                    </form>
+                }
+            </div>
+        </div>
+    </section>
+}
+
+<section class="card">
+    <h2>On file with your coach</h2>
+    @if (Model.LoggedItems.Count == 0 && Model.Documents.Count == 0)
+    {
+        <p class="hint-text">Nothing yet. Log a meal or workout above — the coach reads it on your next card.</p>
+    }
+    @foreach (var doc in Model.Documents)
+    {
+        <div class="chip">
+            <span class="chip-tag chip-tag-doc">DOC</span>
+            <span class="chip-body">@doc.FileName@(doc.Summary is not null ? $" — {doc.Summary}" : "")
+                @if (doc.ParseStatus == "failed")
+                {
+                    <em>(unreadable — the coach can't discuss this one)</em>
+                }
+            </span>
+            <span class="chip-when">@MountainTime.Format(doc.UploadedAt)</span>
+            <span class="chip-actions">
+                @if (Model.ChatEnabled && doc.ParseStatus == "parsed")
+                {
+                    <form method="post" asp-page-handler="Ask" class="inline-form">
+                        <input type="hidden" name="subjectType" value="document" />
+                        <input type="hidden" name="subjectId" value="@doc.Id" />
+                        <button type="submit" class="btn-link">Ask about this</button>
+                    </form>
+                }
+                <form method="post" asp-page-handler="Delete" class="inline-form">
+                    <input type="hidden" name="itemType" value="document" />
+                    <input type="hidden" name="itemId" value="@doc.Id" />
+                    <button type="submit" class="btn-link" aria-label="Delete @doc.FileName">delete</button>
+                </form>
+            </span>
+        </div>
+    }
+    @foreach (var item in Model.LoggedItems)
+    {
+        <div class="chip">
+            <span class="chip-tag @CoachModel.ChipTagClass(item.ItemType)">@CoachModel.ChipTag(item.ItemType)</span>
+            <span class="chip-body">@item.Summary</span>
+            <span class="chip-actions">
+                @if (Model.ChatEnabled)
+                {
+                    <form method="post" asp-page-handler="Ask" class="inline-form">
+                        <input type="hidden" name="subjectType" value="@item.ItemType" />
+                        <input type="hidden" name="subjectId" value="@item.Id" />
+                        <button type="submit" class="btn-link">Ask about this</button>
+                    </form>
+                }
+                <form method="post" asp-page-handler="Delete" class="inline-form">
+                    <input type="hidden" name="itemType" value="@item.ItemType" />
+                    <input type="hidden" name="itemId" value="@item.Id" />
+                    <button type="submit" class="btn-link" aria-label="Delete this entry">delete</button>
+                </form>
+            </span>
+        </div>
+    }
+</section>
+
+@if (Model.ChatEnabled)
+{
+    <section class="card">
+        <h2>Conversations</h2>
+        @if (Model.Threads.Count == 0)
+        {
+            <p class="hint-text">Ask about anything on file above, or start a general conversation about your plan.</p>
+        }
+        @foreach (var t in Model.Threads)
+        {
+            <div class="chip">
+                <span class="chip-tag @CoachModel.ChipTagClass(t.SubjectType)">@CoachModel.ChipTag(t.SubjectType)</span>
+                <span class="chip-body"><a href="/me/coach/thread/@t.Id">@t.Title</a></span>
+                <span class="chip-when">@t.MessageCount msgs · @MountainTime.Format(t.LastMessageAt)</span>
+            </div>
+        }
+        <form method="post" asp-page-handler="Ask" style="margin-top: 0.75rem;">
+            <input type="hidden" name="subjectType" value="general" />
+            <button type="submit" class="btn-coach">Ask the coach anything</button>
+        </form>
+        <p class="hint-text" style="margin-top: 0.5rem;">
+            What you type in a conversation is processed by our AI provider — same rules
+            as your card data: never used for training, no identifiers attached.
+        </p>
+    </section>
+}

@@ -1,0 +1,64 @@
+@page "/me/coach/thread/{id:guid}"
+@model SomaCore.Api.Pages.CoachThreadModel
+@using SomaCore.Api.Time
+@{
+    ViewData["Title"] = Model.Title;
+}
+
+<h1>Talking it through</h1>
+<p class="subtitle"><a href="/me/coach">← Your coach</a></p>
+
+<div class="chip chip--pinned">
+    <span class="chip-tag @CoachModel.ChipTagClass(Model.SubjectType)">@CoachModel.ChipTag(Model.SubjectType)</span>
+    <span class="chip-body">@Model.Title</span>
+</div>
+
+@if (Model.Error is not null)
+{
+    <p class="banner-warning" role="alert"><span class="banner-text">@Model.Error</span></p>
+}
+
+<div class="thread" aria-live="polite">
+    @if (Model.Messages.Count == 0)
+    {
+        <p class="hint-text">
+            Ask anything about
+            @(Model.SubjectType == "general" ? "your plan or your data" : "this") —
+            why it matters, what to change, how it fits today's plan.
+        </p>
+    }
+    @foreach (var m in Model.Messages)
+    {
+        @if (m.Role == "coach")
+        {
+            <div class="msg msg-coach @(m.Refusal ? "msg-refusal" : "")">
+                <p class="msg-meta">COACH · @MountainTime.Format(m.CreatedAt)</p>
+                <p>@m.Content</p>
+            </div>
+        }
+        else
+        {
+            <div class="msg msg-user">
+                <p class="msg-meta">YOU · @MountainTime.Format(m.CreatedAt)</p>
+                <p>@m.Content</p>
+            </div>
+        }
+    }
+</div>
+
+@if (Model.TurnsLeft > 0)
+{
+    <form method="post" asp-page-handler="Send" asp-route-id="@Model.ThreadId" class="thread-input">
+        <input type="text" name="text" maxlength="@Model.MaxTurnChars" required
+               placeholder="Ask the coach…" autocomplete="off" autofocus />
+        <button type="submit" class="btn-coach">Send</button>
+    </form>
+    <p class="turns-left">@Model.TurnsLeft turns left in this conversation</p>
+}
+else
+{
+    <p class="banner-warning"><span class="banner-text">
+        That's it for this conversation — tomorrow's card picks this up.
+        <a href="/me/coach">Back to your coach.</a>
+    </span></p>
+}

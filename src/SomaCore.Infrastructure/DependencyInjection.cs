@@ -2,12 +2,11 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
-
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
-
 using SomaCore.Infrastructure.Agent;
 using SomaCore.Infrastructure.Backfill;
+using SomaCore.Infrastructure.Coach;
 using SomaCore.Infrastructure.Observability;
 using SomaCore.Infrastructure.Persistence;
 using SomaCore.Infrastructure.Persistence.Interceptors;
@@ -149,6 +148,15 @@ public static class DependencyInjection
             .Bind(configuration.GetSection(QuickLogOptions.SectionName));
         services.AddScoped<IQuickLogExtractionService, QuickLogExtractionService>();
         services.AddScoped<IQuickLogEntryService, QuickLogEntryService>();
+
+        // Coach conversation + documents (/me/coach). Same nullable-client
+        // pattern: the services no-op with a Failure when CoachChat:Enabled
+        // is false or the Anthropic client isn't registered.
+        services
+            .AddOptions<CoachChatOptions>()
+            .Bind(configuration.GetSection(CoachChatOptions.SectionName));
+        services.AddScoped<IUserDocumentService, UserDocumentService>();
+        services.AddScoped<ICoachChatService, CoachChatService>();
 
         return services;
     }

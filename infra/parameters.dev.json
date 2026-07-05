@@ -40,6 +40,9 @@
     },
     "quickLogEnabled": {
       "value": true
+    },
+    "coachChatEnabled": {
+      "value": true
     }
   }
 }

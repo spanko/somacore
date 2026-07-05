@@ -194,6 +194,30 @@ New numbered item after the physiological input window:
 
 ---
 
-# One open question that spans all four parts
+# Part 5 — Documents + coach conversations (gates enabling /me/coach chat surfaces)
+
+**Added 2026-07-05.** Built on Adam's direction and enabled in dev for the internal alpha; Tai's review is owed and this part records exactly what the surfaces do.
+
+## 5a. Document upload
+
+> **User-uploaded documents (PDF, CSV, TXT, Markdown, ≤10 MB).** The file's contents are read by Anthropic **once at upload time** to produce a plain-text transcription the coach can discuss (PDFs are transmitted as the file; text formats are read directly by our own code and never sent at upload). The file bytes and the transcription are stored in our database, user-deletable from /me/coach, and cascade on account deletion. The invocation log records that an extraction happened but NOT the file bytes. We cannot pre-filter what a user chooses to upload — the upload control carries an inline notice.
+
+## 5b. Coach conversations
+
+> **Conversation turns on /me/coach.** Each user turn is sent to Anthropic together with: the conversation so far, the subject under discussion (a document's transcription, or a logged meal/workout/note), the user's latest daily card, and the same data snapshot the card sees. Same exclusions as Section D.2 — no identifiers, no tokens, no raw payloads, no food-item names in the snapshot. Conversations are capped (10 user turns per thread, 40 coach replies per day) and every coach turn is logged to `agent_invocations` (kind `conversation`), including the user's typed text.
+>
+> **The coach cannot act from conversation.** It cannot log, change, or delete data; when the user states new data mid-conversation, it directs them to the logging forms. Out-of-bounds asks (per `agent-bounds.md`) are refused through a mechanically-enforced refusal flag and rendered visibly as refusals.
+
+## 5c. Review checkboxes
+
+- [ ] **PDF contents go to Anthropic once at upload** (5a) — same posture as lab parsing (Part 1, F.3). Confirm.
+- [ ] **Free-form conversation text goes to Anthropic per turn, with thread history** (5b). This is the largest free-text surface so far. Confirm the inline notice + caps posture.
+- [ ] **Conversation logs retain the user's typed text** in `agent_invocations` and `coach_messages`. Confirm, or set a retention window.
+- [ ] **No conversational writes** — the coach can't mutate data from chat. Confirm this stays a hard rule.
+- [ ] **The conversational voice addendum to `agent-voice-and-persona.md` is still yours to author** — the current build reuses the card persona verbatim plus mechanical conversation rules. Flag anything you want changed in how it refuses or redirects.
+
+---
+
+# One open question that spans all five parts
 
 **Does the `/me` disclosure block (Section D.6) need updating per-source, or does one sentence cover all sources?** Current draft thinking: the base disclosure grows to *"...from your last 7 days of WHOOP, nutrition, and workout data"* once those sources are live, and the lab-specific extension (F.7) appears only on cards that reference a lab. Tai to confirm the disclosure shape she wants.

@@ -1,11 +1,13 @@
 using Microsoft.EntityFrameworkCore;
 
 using SomaCore.Domain.Agent;
+using SomaCore.Domain.CoachThreads;
 using SomaCore.Domain.ExternalConnections;
 using SomaCore.Domain.FoodEntries;
 using SomaCore.Domain.HealthKitWorkouts;
 using SomaCore.Domain.JobRuns;
 using SomaCore.Domain.OAuthAudit;
+using SomaCore.Domain.UserDocuments;
 using SomaCore.Domain.UserNotes;
 using SomaCore.Domain.Users;
 using SomaCore.Domain.WebhookEvents;
@@ -45,6 +47,12 @@ public class SomaCoreDbContext : DbContext
     public DbSet<HealthKitWorkout> HealthKitWorkouts => Set<HealthKitWorkout>();
 
     public DbSet<UserNote> UserNotes => Set<UserNote>();
+
+    public DbSet<UserDocument> UserDocuments => Set<UserDocument>();
+
+    public DbSet<CoachThread> CoachThreads => Set<CoachThread>();
+
+    public DbSet<CoachMessage> CoachMessages => Set<CoachMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

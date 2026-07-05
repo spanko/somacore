@@ -172,20 +172,7 @@ public sealed class LiveDailyAgentService : IDailyAgentService
 
     private static (string SystemPrompt, AnthropicTool Tool) BuildSystemPromptAndTool()
     {
-        var docsDir = Path.Combine(AppContext.BaseDirectory, "AgentDocs");
-        var voicePath = Path.Combine(docsDir, "agent-voice-and-persona.md");
-        var boundsPath = Path.Combine(docsDir, "agent-bounds.md");
-
-        if (!File.Exists(voicePath) || !File.Exists(boundsPath))
-        {
-            throw new InvalidOperationException(
-                $"Agent docs not found at {docsDir}. " +
-                "Expected Infrastructure.csproj Content items to publish " +
-                "agent-voice-and-persona.md and agent-bounds.md to AgentDocs/.");
-        }
-
-        var voice = File.ReadAllText(voicePath);
-        var bounds = File.ReadAllText(boundsPath);
+        var (voice, bounds) = AgentDocs.Load();
 
         var categories = string.Join(", ", AgentActionCategory.All);
         var sources = $"{AgentActionSource.ProtocolBased}, {AgentActionSource.UserDataInformed}";
