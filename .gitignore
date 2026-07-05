@@ -69,3 +69,4 @@ appsettings.*.json
 *.bak
 *.swp
 *~
+.playwright-mcp/
