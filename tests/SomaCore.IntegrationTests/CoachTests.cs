@@ -105,6 +105,30 @@ public class CoachTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Parsed_documents_appear_as_summaries_in_the_snapshot()
+    {
+        // Documents must be visible to the coach EVERYWHERE (daily card +
+        // general conversations) as name+summary — not only inside a thread
+        // anchored to them. Full text stays out of the snapshot.
+        var empty = await AgentInputSnapshotBuilder.BuildAsync(
+            _db, _userId, DateTimeOffset.UtcNow, CancellationToken.None);
+        empty.Json.Should().NotContain("documents_on_file");
+
+        var service = DocumentService();
+        await service.UploadAsync(_userId, "training-plan.txt", "text/plain",
+            Encoding.UTF8.GetBytes("Week 1: 5.5 hours all Z2. Week 3 peak: threshold intervals."),
+            CancellationToken.None);
+
+        var snapshot = await AgentInputSnapshotBuilder.BuildAsync(
+            _db, _userId, DateTimeOffset.UtcNow, CancellationToken.None);
+
+        snapshot.Json.Should().Contain("documents_on_file");
+        snapshot.Json.Should().Contain("training-plan.txt");
+        // Summary only — the document's full text must NOT ride in the snapshot.
+        snapshot.Json.Should().NotContain("threshold intervals");
+    }
+
+    [Fact]
     public async Task Document_delete_enforces_ownership()
     {
         var service = DocumentService();

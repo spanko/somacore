@@ -238,6 +238,19 @@ internal static class AgentInputSnapshotBuilder
             .Select(n => new UserNoteSnapshot(n.Category, n.Note, n.ActiveUntil, n.CreatedAt))
             .ToListAsync(ct);
 
+        // Documents on file — summaries only, so the coach KNOWS what the
+        // user has handed over everywhere (daily card + any conversation)
+        // without paying full-text tokens outside a document-anchored
+        // thread. The summary was produced by the extraction pass; the full
+        // text rides only in threads opened from the document's chip.
+        var documentsOnFile = await db.UserDocuments
+            .AsNoTracking()
+            .Where(d => d.UserId == userId && d.ParseStatus == "parsed")
+            .OrderByDescending(d => d.UploadedAt)
+            .Take(5)
+            .Select(d => new DocumentOnFile(d.FileName, d.Summary, d.UploadedAt))
+            .ToListAsync(ct);
+
         // Sections are omitted (not sent as empty arrays) when a user has no
         // data — the coach shouldn't reason about "zero meals" when the truth
         // is "hasn't logged anything yet".
@@ -252,6 +265,7 @@ internal static class AgentInputSnapshotBuilder
             latest_food_entries = latestFoodEntries.Count > 0 ? latestFoodEntries : null,
             daily_macro_rollups = dailyMacroRollups.Count > 0 ? dailyMacroRollups : null,
             user_notes = notes.Count > 0 ? notes : null,
+            documents_on_file = documentsOnFile.Count > 0 ? documentsOnFile : null,
         };
 
         return new AgentInputSnapshot(JsonSerializer.Serialize(snapshot, JsonOptions));
@@ -317,6 +331,11 @@ internal static class AgentInputSnapshotBuilder
         string Note,
         DateOnly? ActiveUntil,
         DateTimeOffset CreatedAt);
+
+    private sealed record DocumentOnFile(
+        string FileName,
+        string? Summary,
+        DateTimeOffset UploadedAt);
 
     private static decimal? SumNullable(IEnumerable<decimal?> values)
     {

@@ -208,7 +208,11 @@ New numbered item after the physiological input window:
 >
 > **The coach cannot act from conversation.** It cannot log, change, or delete data; when the user states new data mid-conversation, it directs them to the logging forms. Out-of-bounds asks (per `agent-bounds.md`) are refused through a mechanically-enforced refusal flag and rendered visibly as refusals.
 
-## 5c. Review checkboxes
+## 5c. Document awareness in the snapshot (added 2026-07-05, same day)
+
+> The one-line **summary** of each parsed document (produced by the extraction pass) plus its file name and upload date is included in the daily-card input snapshot — capped at the 5 most recent — so the coach knows what's on file in every context. **Full document text is never in the snapshot**; it rides only in a conversation the user explicitly opened from that document.
+
+## 5c-bis. Review checkboxes
 
 - [ ] **PDF contents go to Anthropic once at upload** (5a) — same posture as lab parsing (Part 1, F.3). Confirm.
 - [ ] **Free-form conversation text goes to Anthropic per turn, with thread history** (5b). This is the largest free-text surface so far. Confirm the inline notice + caps posture.

@@ -336,6 +336,7 @@ public sealed class CoachChatService : ICoachChatService
 - refusal: set true when the user's ask is OUT OF BOUNDS (medical diagnosis, clinical interpretation, appearance/weight commentary, second-guessing clinicians). When refusing, the reply briefly says what you can't do and redirects to what you can — one sentence each, no lecture.
 - You cannot log, change, or delete any data from conversation. If the user states new data ("I also ran 5k"), tell them to log it from the coach page so it counts.
 - No recommendations that need a lab source unless lab data appears in the context below.
+- The snapshot's `documents_on_file` lists everything the user has uploaded, by name and summary. You may reference any of them. If the user asks about a document's DETAILS and its full contents are not in "What this conversation is about" below, say what you know from the summary and tell them to open that document's "Ask about this" on the coach page for a conversation with its full contents.
 
 # What this conversation is about
 
