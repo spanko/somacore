@@ -238,6 +238,44 @@ internal static class AgentInputSnapshotBuilder
             .Select(n => new UserNoteSnapshot(n.Category, n.Note, n.ActiveUntil, n.CreatedAt))
             .ToListAsync(ct);
 
+        // Confirmed lab biomarkers — most recent value per marker within a
+        // year, flagged rows first, capped at 60 (privacy Section F.1 /
+        // session-function-health §1.4). ONLY confirmed uploads: the user
+        // attests the extraction before the coach may read it.
+        var labSince = localToday.AddDays(-365);
+        var labRows = await db.LabBiomarkers
+            .AsNoTracking()
+            .Where(b => b.UserId == userId
+                     && b.CollectedAt >= labSince
+                     && b.LabUpload!.ParseStatus == "confirmed")
+            .Select(b => new
+            {
+                b.BiomarkerName,
+                b.DisplayName,
+                b.Category,
+                b.NumericValue,
+                b.StringValue,
+                b.Unit,
+                b.ReferenceLow,
+                b.ReferenceHigh,
+                b.Flagged,
+                b.CollectedAt,
+                b.LabUploadId,
+            })
+            .ToListAsync(ct);
+
+        var latestBiomarkers = labRows
+            .GroupBy(b => b.BiomarkerName)
+            .Select(g => g.OrderByDescending(b => b.CollectedAt).First())
+            .OrderBy(b => b.Flagged == "in_range" ? 1 : 0)
+            .ThenBy(b => b.BiomarkerName)
+            .Take(60)
+            .Select(b => new BiomarkerSnapshot(
+                b.BiomarkerName, b.DisplayName, b.Category, b.NumericValue,
+                b.StringValue, b.Unit, b.ReferenceLow, b.ReferenceHigh,
+                b.Flagged, b.CollectedAt, b.LabUploadId))
+            .ToList();
+
         // Documents on file — summaries only, so the coach KNOWS what the
         // user has handed over everywhere (daily card + any conversation)
         // without paying full-text tokens outside a document-anchored
@@ -266,6 +304,7 @@ internal static class AgentInputSnapshotBuilder
             daily_macro_rollups = dailyMacroRollups.Count > 0 ? dailyMacroRollups : null,
             user_notes = notes.Count > 0 ? notes : null,
             documents_on_file = documentsOnFile.Count > 0 ? documentsOnFile : null,
+            latest_biomarkers = latestBiomarkers.Count > 0 ? latestBiomarkers : null,
         };
 
         return new AgentInputSnapshot(JsonSerializer.Serialize(snapshot, JsonOptions));
@@ -336,6 +375,19 @@ internal static class AgentInputSnapshotBuilder
         string FileName,
         string? Summary,
         DateTimeOffset UploadedAt);
+
+    private sealed record BiomarkerSnapshot(
+        string BiomarkerName,
+        string DisplayName,
+        string Category,
+        decimal? NumericValue,
+        string? StringValue,
+        string? Unit,
+        decimal? ReferenceLow,
+        decimal? ReferenceHigh,
+        string Flagged,
+        DateOnly CollectedAt,
+        Guid LabUploadId);
 
     private static decimal? SumNullable(IEnumerable<decimal?> values)
     {

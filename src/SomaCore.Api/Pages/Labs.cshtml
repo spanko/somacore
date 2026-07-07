@@ -1,0 +1,85 @@
+@page "/me/labs"
+@model SomaCore.Api.Pages.LabsModel
+@using SomaCore.Api.Time
+@{
+    ViewData["Title"] = "Lab results";
+}
+
+<h1>Lab results</h1>
+<p class="subtitle">
+    Upload your Function Health results PDF. You'll review exactly what was read
+    before the coach can use any of it. <a href="/me">← Back to today</a>
+</p>
+
+@if (Model.Banner is not null)
+{
+    <p class="banner-success" role="status">@Model.Banner</p>
+}
+@if (Model.Error is not null)
+{
+    <p class="banner-warning" role="alert"><span class="banner-text">@Model.Error</span></p>
+}
+
+@if (!Model.LabsEnabled)
+{
+    <section class="card"><p>Lab uploads aren't enabled in this environment yet.</p></section>
+}
+else
+{
+    <section class="card">
+        <h2>Upload a panel</h2>
+        <form method="post" asp-page-handler="Upload" enctype="multipart/form-data">
+            <div class="field-row">
+                <label class="field"><span>Function Health results PDF — up to 10 MB</span>
+                    <input type="file" name="file" accept=".pdf,application/pdf" required /></label>
+            </div>
+            <button type="submit" class="btn-coach">Upload and read</button>
+            <p class="hint-text">
+                The PDF is read once by our AI provider to extract the biomarker values —
+                your name and any identifiers on the report are skipped. Reading takes
+                10–20 seconds; you'll review every extracted value next.
+            </p>
+        </form>
+    </section>
+}
+
+<section class="card">
+    <h2>On file</h2>
+    @if (Model.Uploads.Count == 0)
+    {
+        <p class="hint-text">No panels yet. The coach can't reference lab values until you upload and confirm one.</p>
+    }
+    @foreach (var u in Model.Uploads)
+    {
+        <div class="chip">
+            <span class="chip-tag chip-tag-doc">LAB</span>
+            <span class="chip-body">
+                <a href="/me/labs/@u.Id">@u.FileName</a>
+                @(u.CollectedAt is { } c ? $"— collected {c:MMM d, yyyy}" : "")
+                @if (u.ParseStatus == "confirmed")
+                {
+                    <span class="badge badge-scored">CONFIRMED</span>
+                }
+                else if (u.ParseStatus == "parsed")
+                {
+                    <span class="badge badge-pending">NEEDS REVIEW</span>
+                }
+                else
+                {
+                    <span class="badge badge-unscorable">UNREADABLE</span>
+                }
+                @if (u.BiomarkerCount > 0)
+                {
+                    <text> · @u.BiomarkerCount markers, @u.FlaggedCount out of range</text>
+                }
+            </span>
+            <span class="chip-when">@MountainTime.Format(u.UploadedAt)</span>
+            <span class="chip-actions">
+                <form method="post" asp-page-handler="Delete" class="inline-form">
+                    <input type="hidden" name="uploadId" value="@u.Id" />
+                    <button type="submit" class="btn-link" aria-label="Delete @u.FileName">delete</button>
+                </form>
+            </span>
+        </div>
+    }
+</section>

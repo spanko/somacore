@@ -83,6 +83,9 @@ param quickLogEnabled bool = false
 @description('Whether the coach conversation + document surfaces on /me/coach are enabled. Privacy draft Part 5. Requires anthropicEnabled.')
 param coachChatEnabled bool = false
 
+@description('Whether the lab upload surface on /me/labs is enabled. Privacy draft Part 1 / Section F. Requires anthropicEnabled.')
+param labsEnabled bool = false
+
 // ----- naming derived from the prefix ----------------------------------------
 
 var workspaceName  = '${namingPrefix}-law'
@@ -202,6 +205,7 @@ module containerApps 'modules/containerApps.bicep' = {
     anthropicModelId: anthropicModelId
     quickLogEnabled: quickLogEnabled
     coachChatEnabled: coachChatEnabled
+    labsEnabled: labsEnabled
   }
   dependsOn: [
     pgConnectionStringSecret

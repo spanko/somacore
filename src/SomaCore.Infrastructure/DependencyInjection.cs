@@ -7,6 +7,7 @@ using OpenTelemetry.Trace;
 using SomaCore.Infrastructure.Agent;
 using SomaCore.Infrastructure.Backfill;
 using SomaCore.Infrastructure.Coach;
+using SomaCore.Infrastructure.Labs;
 using SomaCore.Infrastructure.Observability;
 using SomaCore.Infrastructure.Persistence;
 using SomaCore.Infrastructure.Persistence.Interceptors;
@@ -157,6 +158,12 @@ public static class DependencyInjection
             .Bind(configuration.GetSection(CoachChatOptions.SectionName));
         services.AddScoped<IUserDocumentService, UserDocumentService>();
         services.AddScoped<ICoachChatService, CoachChatService>();
+
+        // Lab uploads (/me/labs, session-function-health-integration.md).
+        services
+            .AddOptions<LabsOptions>()
+            .Bind(configuration.GetSection(LabsOptions.SectionName));
+        services.AddScoped<ILabUploadService, LabUploadService>();
 
         return services;
     }

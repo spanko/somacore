@@ -21,11 +21,22 @@ public sealed record AgentAction(
     /// <summary>
     /// Provenance per the voice doc: where the recommendation comes from.
     /// One of <see cref="AgentActionSource.ProtocolBased"/>,
-    /// <see cref="AgentActionSource.UserDataInformed"/>, or a reference to a
-    /// user-uploaded lab document. Null acceptable on the stub path; required
-    /// for any live model output (the validator enforces).
+    /// <see cref="AgentActionSource.UserDataInformed"/>, or
+    /// <see cref="AgentActionSource.UserUploadedLab"/>. Null acceptable on
+    /// the stub path; required for any live model output (the validator
+    /// enforces).
     /// </summary>
-    string? Source = null);
+    string? Source = null,
+    /// <summary>
+    /// The confirmed <c>lab_uploads.id</c> this action is grounded in.
+    /// Required when <see cref="Category"/> is
+    /// <see cref="AgentActionCategory.SupplementsFromLabs"/>; must be one of
+    /// the user's confirmed uploads (the validator checks against the real
+    /// set). There is no agent_actions table — actions persist inside
+    /// <see cref="AgentInvocation.ActionsJson"/>, so provenance is this
+    /// field rather than a DB foreign key.
+    /// </summary>
+    Guid? LabUploadId = null);
 
 /// <summary>
 /// The complete IN BOUNDS category list from <c>docs/agent-bounds.md</c>.
@@ -88,7 +99,10 @@ public static class AgentActionSource
     public const string ProtocolBased = "protocol_based";
     /// <summary>Tailored to this user's WHOOP signal (their baseline, their trend).</summary>
     public const string UserDataInformed = "user_data_informed";
-    // User-uploaded lab references look like "lab:<document-id>" or similar
-    // when the lab ingestion surface lands. Until then, ProtocolBased and
-    // UserDataInformed are the only two values the validator will accept.
+    /// <summary>
+    /// Grounded in a confirmed user-uploaded lab panel. Must be paired with
+    /// <see cref="AgentAction.LabUploadId"/>; the validator rejects the
+    /// combination otherwise.
+    /// </summary>
+    public const string UserUploadedLab = "user_uploaded_lab";
 }

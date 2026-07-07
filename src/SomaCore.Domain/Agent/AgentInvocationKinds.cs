@@ -12,4 +12,5 @@ public static class AgentInvocationKinds
     public const string QuickLogExtraction = "quick_log_extraction";
     public const string DocumentExtraction = "document_extraction";
     public const string Conversation = "conversation";
+    public const string LabExtraction = "lab_extraction";
 }

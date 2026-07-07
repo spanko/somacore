@@ -82,6 +82,9 @@ param quickLogEnabled bool = false
 @description('Whether the coach conversation + document surfaces on /me/coach are enabled. Privacy draft Part 5.')
 param coachChatEnabled bool = false
 
+@description('Whether the lab upload surface on /me/labs is enabled. Privacy draft Part 1 / Section F.')
+param labsEnabled bool = false
+
 @description('Whether to bind KV-backed app secrets (postgres connection string, web/whoop client secrets, anthropic API key) onto the Container App. Set true once KV secrets are populated and the image actually consumes them.')
 param wireKeyVaultSecrets bool = false
 
@@ -170,6 +173,10 @@ var staticEnv = [
   {
     name: 'CoachChat__Enabled'
     value: '${coachChatEnabled}'
+  }
+  {
+    name: 'Labs__Enabled'
+    value: '${labsEnabled}'
   }
 ]
 

@@ -15,7 +15,15 @@ public sealed record AgentCardPayload(string TodaysRead, IReadOnlyList<AgentActi
 
 internal static class AgentResponseValidator
 {
-    public static Result<AgentCardPayload> Validate(AnthropicMessageResponse response)
+    /// <param name="confirmedLabUploadIds">
+    /// The user's CONFIRMED lab upload ids. A lab-sourced action citing any
+    /// other id — hallucinated, someone else's, or an unconfirmed upload —
+    /// rejects the response. Pass empty when the user has no confirmed labs
+    /// (the pre-labs behavior: lab sources are then always rejected).
+    /// </param>
+    public static Result<AgentCardPayload> Validate(
+        AnthropicMessageResponse response,
+        IReadOnlyCollection<Guid> confirmedLabUploadIds)
     {
         if (response.Content is null || response.Content.Count == 0)
         {
@@ -118,16 +126,56 @@ internal static class AgentResponseValidator
                     return Result<AgentCardPayload>.Failure($"actions[{index - 1}].source missing or empty.");
                 }
                 if (source != AgentActionSource.ProtocolBased
-                    && source != AgentActionSource.UserDataInformed)
+                    && source != AgentActionSource.UserDataInformed
+                    && source != AgentActionSource.UserUploadedLab)
                 {
-                    // We don't yet ingest lab documents, so lab-sourced
-                    // citations can't be honored. Reject for now and revisit
-                    // when lab ingestion lands.
                     return Result<AgentCardPayload>.Failure(
                         $"actions[{index - 1}].source '{source}' is not a recognized provenance value.");
                 }
 
-                actions.Add(new AgentAction(title, why, category, rank, source));
+                // Lab provenance rules (session-function-health §1.5):
+                // supplements_from_labs REQUIRES a lab source + a real
+                // confirmed upload id; a lab source is invalid anywhere else
+                // without its id; an id with a non-lab source is a mismatch.
+                Guid? labUploadId = null;
+                if (actionEl.TryGetProperty("lab_upload_id", out var labIdEl)
+                    && labIdEl.ValueKind == JsonValueKind.String
+                    && !string.IsNullOrWhiteSpace(labIdEl.GetString()))
+                {
+                    if (!Guid.TryParse(labIdEl.GetString(), out var parsedLabId))
+                    {
+                        return Result<AgentCardPayload>.Failure(
+                            $"actions[{index - 1}].lab_upload_id is not a valid id.");
+                    }
+                    labUploadId = parsedLabId;
+                }
+
+                if (category == AgentActionCategory.SupplementsFromLabs
+                    && source != AgentActionSource.UserUploadedLab)
+                {
+                    return Result<AgentCardPayload>.Failure(
+                        $"actions[{index - 1}]: supplements_from_labs requires source '{AgentActionSource.UserUploadedLab}'.");
+                }
+                if (source == AgentActionSource.UserUploadedLab)
+                {
+                    if (labUploadId is null)
+                    {
+                        return Result<AgentCardPayload>.Failure(
+                            $"actions[{index - 1}]: lab-sourced action without lab_upload_id.");
+                    }
+                    if (!confirmedLabUploadIds.Contains(labUploadId.Value))
+                    {
+                        return Result<AgentCardPayload>.Failure(
+                            $"actions[{index - 1}]: lab_upload_id does not reference one of the user's confirmed uploads.");
+                    }
+                }
+                else if (labUploadId is not null)
+                {
+                    return Result<AgentCardPayload>.Failure(
+                        $"actions[{index - 1}]: lab_upload_id present but source is '{source}'.");
+                }
+
+                actions.Add(new AgentAction(title, why, category, rank, source, labUploadId));
             }
 
             if (actions.Count != 3)

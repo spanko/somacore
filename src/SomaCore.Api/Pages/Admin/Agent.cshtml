@@ -55,9 +55,9 @@
                                 {
                                     <span class="badge badge-scored">LIVE</span>
                                 }
-                                @if (r.Kind == SomaCore.Domain.Agent.AgentInvocationKinds.QuickLogExtraction)
+                                @if (r.Kind != SomaCore.Domain.Agent.AgentInvocationKinds.DailyCard)
                                 {
-                                    <span class="badge badge-pending">QUICK-LOG</span>
+                                    <span class="badge badge-pending">@r.Kind.Replace("_", "-").ToUpperInvariant()</span>
                                 }
                             </td>
                             <td>

@@ -1,0 +1,118 @@
+@page "/me/labs/{id:guid}"
+@model SomaCore.Api.Pages.LabReviewModel
+@{
+    ViewData["Title"] = "Review panel";
+}
+
+<h1>Check what was read</h1>
+<p class="subtitle">
+    @Model.FileName@(Model.CollectedAt is { } c ? $" — collected {c:MMMM d, yyyy}" : "")
+    · <a href="/me/labs">← Lab results</a>
+</p>
+
+@if (Model.Banner is not null)
+{
+    <p class="banner-warning" role="alert"><span class="banner-text">@Model.Banner</span></p>
+}
+
+@if (Model.ParseStatus == "failed")
+{
+    <section class="card">
+        <p class="banner-warning"><span class="banner-text">
+            This panel couldn't be read reliably, so nothing was extracted and there's
+            nothing to confirm. Try re-downloading the PDF from Function and uploading again.
+        </span></p>
+        @if (Model.ParseError is not null)
+        {
+            <details><summary>Technical detail</summary><p><code>@Model.ParseError</code></p></details>
+        }
+        <form method="post" asp-page-handler="Delete" asp-route-id="@Model.UploadId">
+            <button type="submit" class="btn-link">Delete this upload</button>
+        </form>
+    </section>
+}
+else
+{
+    <section class="card">
+        @if (Model.ParseStatus == "confirmed")
+        {
+            <p><span class="badge badge-scored">CONFIRMED</span> The coach can reference these values.</p>
+        }
+        else
+        {
+            <p>
+                <strong>@Model.Biomarkers.Count values were read from your PDF.</strong>
+                Spot-check them against the report — out-of-range markers are listed first.
+                The coach uses none of this until you confirm.
+            </p>
+        }
+        <div class="admin-table-wrap">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Marker</th>
+                        <th>Value</th>
+                        <th>Reference</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var b in Model.Biomarkers)
+                    {
+                        <tr>
+                            <td>@b.DisplayName <span class="subtitle">@b.Category</span></td>
+                            <td>
+                                @(b.NumericValue is { } v ? v.ToString("0.##") : b.StringValue)
+                                @(b.Unit ?? "")
+                            </td>
+                            <td>
+                                @if (b.ReferenceLow is { } lo && b.ReferenceHigh is { } hi)
+                                {
+                                    <text>@lo.ToString("0.##")–@hi.ToString("0.##")</text>
+                                }
+                                else
+                                {
+                                    @(b.ReferenceString ?? "—")
+                                }
+                            </td>
+                            <td>
+                                @if (b.Flagged == "low")
+                                {
+                                    <span class="badge badge-pending">LOW</span>
+                                }
+                                else if (b.Flagged == "high")
+                                {
+                                    <span class="badge badge-pending">HIGH</span>
+                                }
+                                else if (b.Flagged == "in_range")
+                                {
+                                    <span class="badge badge-scored">OK</span>
+                                }
+                                else
+                                {
+                                    <span class="badge badge-unscorable">—</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        @if (Model.ParseStatus == "parsed")
+        {
+            <div class="quicklog-confirm-actions" style="margin-top: 1rem;">
+                <form method="post" asp-page-handler="Confirm" asp-route-id="@Model.UploadId" class="inline-form">
+                    <button type="submit" class="btn-coach">These are correct — confirm</button>
+                </form>
+                <form method="post" asp-page-handler="Delete" asp-route-id="@Model.UploadId" class="inline-form">
+                    <button type="submit" class="btn-link">Something's wrong — delete</button>
+                </form>
+            </div>
+            <p class="hint-text" style="margin-top: 0.5rem;">
+                Confirming tells the coach these values are trustworthy. Every lab-based
+                recommendation will cite this panel and its collection date.
+            </p>
+        }
+    </section>
+}

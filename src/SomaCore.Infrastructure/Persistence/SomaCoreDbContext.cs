@@ -6,6 +6,7 @@ using SomaCore.Domain.ExternalConnections;
 using SomaCore.Domain.FoodEntries;
 using SomaCore.Domain.HealthKitWorkouts;
 using SomaCore.Domain.JobRuns;
+using SomaCore.Domain.LabUploads;
 using SomaCore.Domain.OAuthAudit;
 using SomaCore.Domain.UserDocuments;
 using SomaCore.Domain.UserNotes;
@@ -53,6 +54,10 @@ public class SomaCoreDbContext : DbContext
     public DbSet<CoachThread> CoachThreads => Set<CoachThread>();
 
     public DbSet<CoachMessage> CoachMessages => Set<CoachMessage>();
+
+    public DbSet<LabUpload> LabUploads => Set<LabUpload>();
+
+    public DbSet<LabBiomarker> LabBiomarkers => Set<LabBiomarker>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

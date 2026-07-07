@@ -104,7 +104,15 @@ public sealed class LiveDailyAgentService : IDailyAgentService
             return Result<DailyAgentResponse>.Failure($"Anthropic call failed: {ex.Message}");
         }
 
-        var validation = AgentResponseValidator.Validate(response);
+        // Confirmed lab uploads are the only ids a lab-sourced action may
+        // cite; anything else (hallucinated, unconfirmed) rejects the card.
+        var confirmedLabIds = await db.LabUploads
+            .AsNoTracking()
+            .Where(u => u.UserId == userId && u.ParseStatus == "confirmed")
+            .Select(u => u.Id)
+            .ToListAsync(cancellationToken);
+
+        var validation = AgentResponseValidator.Validate(response, confirmedLabIds);
         if (!validation.IsSuccess)
         {
             stopwatch.Stop();
@@ -175,7 +183,7 @@ public sealed class LiveDailyAgentService : IDailyAgentService
         var (voice, bounds) = AgentDocs.Load();
 
         var categories = string.Join(", ", AgentActionCategory.All);
-        var sources = $"{AgentActionSource.ProtocolBased}, {AgentActionSource.UserDataInformed}";
+        var sources = $"{AgentActionSource.ProtocolBased}, {AgentActionSource.UserDataInformed}, {AgentActionSource.UserUploadedLab}";
 
         var systemPrompt =
 $@"You are the SomaCore AI, a daily performance coach. The user-facing brief
@@ -204,7 +212,8 @@ in plain text. The payload must conform to this shape:
       ""why"":   ""<1-2 sentence rationale>"",
       ""category"": ""<one of: {categories}>"",
       ""rank"": <integer; 1 = most important>,
-      ""source"": ""<one of: {sources}>""
+      ""source"": ""<one of: {sources}>"",
+      ""lab_upload_id"": ""<ONLY on lab-sourced actions: the lab_upload_id from latest_biomarkers>""
     }},
     ... three actions total ...
   ]
@@ -214,7 +223,16 @@ Exactly three actions. Ranks 1, 2, 3 (no ties on this first pass).
 `category` must be one of the listed values verbatim. `source` must be one
 of {sources}. Do not invent new categories or sources. Do not generate
 anything outside the IN BOUNDS list. Do not output free-form text outside
-the tool call.";
+the tool call.
+
+Lab-sourced guidance ({AgentActionCategory.SupplementsFromLabs}):
+- ONLY when the signal contains a `latest_biomarkers` section. Never otherwise.
+- source must be `{AgentActionSource.UserUploadedLab}` and lab_upload_id must
+  be the `lab_upload_id` value carried on the biomarker rows you are citing.
+- The `why` must name the biomarker, its value, and the panel date — e.g.
+  ""Vitamin D is 22 ng/mL against a 30-100 reference on your panel from
+  2026-03-14."" State the value; recommend the general-wellness action; you
+  never diagnose.";
 
         // Tool schema: single string field carrying the JSON-serialized card.
         // We keep server-side parsing + validation rather than fight JSON-schema

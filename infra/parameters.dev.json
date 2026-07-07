@@ -43,6 +43,9 @@
     },
     "coachChatEnabled": {
       "value": true
+    },
+    "labsEnabled": {
+      "value": true
     }
   }
 }
