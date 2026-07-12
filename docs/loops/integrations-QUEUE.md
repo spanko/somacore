@@ -18,7 +18,7 @@ Per brief §1.7 (`strava_activities` DDL) minus fields we can't fill yet is NOT 
 - [ ] `StravaOptions.Enabled` defaults false; nothing reads it as true anywhere
 - [ ] Build + full suite green (no behavior change yet)
 
-## S2 — Strava OAuth + token cache — `todo`
+## S2 — Strava OAuth + token cache — `done b4c3a97`
 
 Mirror `WhoopOAuthService`/`WhoopOAuthClient`/`WhoopAccessTokenCache` including the refresh-rotation race-rescue (Strava rotates refresh tokens identically — brief §Approach). Token custody: Key Vault only (`strava-refresh-<userId>` naming per Whoop pattern), DB stores secret names + metadata in `external_connections` (source=strava, strava_athlete_id in connection_metadata).
 
@@ -104,4 +104,7 @@ Per `session-myfitnesspal-integration.md` §1.3 (CSV portion only — iOS is out
 - 2026-07-10 (planning): `agent_actions` table from the Function Health brief doesn't exist — actions are jsonb on invocations; lab provenance became a validated JSON field. Expect similar brief-vs-code drift; trust the code.
 - 2026-07-12 (S1): `ConnectionSource.Strava` and the `'strava'` value in `chk_external_connections_source` already existed — drift in the queue's favor this time.
 - 2026-07-12 (S1): `dotnet dotnet-ef migrations add` emits CRLF files on Windows; CI's format-check fails on them. Run `dotnet format` after every migration add before committing.
+- 2026-07-12 (S2): the queue's "deauthorize via POST /oauth/revoke" endpoint doesn't exist at Strava — the real one is `/oauth/deauthorize`. Made it configurable (`StravaOptions.DeauthorizeUri`) defaulting to the real endpoint.
+- 2026-07-12 (S2): Strava reports granted scopes as a comma-separated `scope` query param on the callback redirect, NOT in the token body (unlike WHOOP); the athlete summary is inlined in the code-exchange response, so no separate profile fetch.
+- 2026-07-12 (S2): the WHOOP token cache never writes token_refresh_success/failed audit rows (constants existed unused). Strava's cache does — S2 DoD required it; consider backporting to WHOOP.
 - 2026-07-12 (S1): evaluator caught a preexisting flaky test — `WhoopStateProtectorTests.Should_reject_a_tampered_state_token` intermittently fails (tamper-midpoint sometimes doesn't corrupt the AEAD tag). Unrelated to loop items; inbox entry filed.
