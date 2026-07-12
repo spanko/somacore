@@ -34,6 +34,9 @@ public sealed class StravaOptions
     /// <summary>Comma-separated Strava scopes (Strava's wire format, unlike WHOOP's space-separated).</summary>
     public string Scopes { get; init; } = "activity:read_all";
 
+    /// <summary>Base URL for the v3 data API (activities, zones, athlete listings).</summary>
+    public string ApiBaseUri { get; init; } = "https://www.strava.com/api/v3";
+
     /// <summary>
     /// Shared token echoed back by Strava's webhook verify-challenge GET
     /// (hub.verify_token). Chosen by us at subscription registration time.

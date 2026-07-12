@@ -1,5 +1,3 @@
-using Microsoft.Extensions.Logging;
-
 using SomaCore.Domain.Common;
 
 namespace SomaCore.Infrastructure.Strava;
@@ -26,29 +24,3 @@ public interface IStravaActivityIngestService
 }
 
 public sealed record StravaActivityIngestOutcome(string Outcome);
-
-/// <summary>
-/// Placeholder until S4 lands. Returns Failure so the webhook_events row is
-/// marked failed and stays visible; the S5 reconciliation poller re-ingests
-/// anything missed once the real service exists. Unreachable in practice
-/// today: Strava:Enabled is false and no webhook subscription is registered.
-/// </summary>
-public sealed class NotYetImplementedStravaActivityIngestService(
-    ILogger<NotYetImplementedStravaActivityIngestService> logger)
-    : IStravaActivityIngestService
-{
-    public Task<Result<StravaActivityIngestOutcome>> IngestAsync(
-        Guid externalConnectionId,
-        long stravaActivityId,
-        string ingestedVia,
-        string? traceId,
-        CancellationToken cancellationToken)
-    {
-        logger.LogWarning(
-            "Strava activity ingest not yet implemented (S4); activity {StravaActivityId} for connection {ConnectionId} left for poller retry",
-            stravaActivityId,
-            externalConnectionId);
-        return Task.FromResult(Result<StravaActivityIngestOutcome>.Failure(
-            "Strava activity ingest service not yet implemented (S4)."));
-    }
-}

@@ -120,10 +120,17 @@ public static class DependencyInjection
         // it pulls a scoped DbContext via IServiceScopeFactory when it needs to write.
         services.AddSingleton<IStravaAccessTokenCache, StravaAccessTokenCache>();
 
+        services
+            .AddHttpClient<IStravaApiClient, StravaApiClient>(client =>
+            {
+                client.Timeout = TimeSpan.FromSeconds(15);
+                client.DefaultRequestHeaders.Accept.Add(
+                    new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
+            });
+
         // S3/S4 seam: the webhook drainer + reconciliation poller dispatch
-        // activity fetch+upsert through this. Placeholder until S4 lands —
-        // returns Failure so missed activities stay visible for poller retry.
-        services.AddScoped<IStravaActivityIngestService, NotYetImplementedStravaActivityIngestService>();
+        // activity fetch+upsert through this.
+        services.AddScoped<IStravaActivityIngestService, StravaActivityIngestService>();
 
         return services;
     }

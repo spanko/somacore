@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace SomaCore.Infrastructure.Strava;
@@ -23,6 +24,48 @@ public sealed record StravaAthleteSummary(
     [property: JsonPropertyName("username")] string? Username,
     [property: JsonPropertyName("firstname")] string? FirstName,
     [property: JsonPropertyName("lastname")] string? LastName);
+
+/// <summary>
+/// Typed subset of Strava's activity representation — GET /activities/{id}
+/// returns the detailed shape (includes <c>splits_metric</c> + <c>laps</c>);
+/// GET /athlete/activities returns summaries (those fields absent). Numeric
+/// HR/cadence/watt fields arrive as floats; we accept <c>decimal?</c> on the
+/// wire and round where the schema wants ints. The full response is preserved
+/// alongside as a raw payload (see <see cref="StravaActivityFetch"/>).
+/// </summary>
+public sealed record StravaActivityPayload(
+    [property: JsonPropertyName("id")] long Id,
+    [property: JsonPropertyName("athlete")] StravaAthleteRef? Athlete,
+    [property: JsonPropertyName("sport_type")] string? SportType,
+    [property: JsonPropertyName("type")] string? Type,
+    [property: JsonPropertyName("start_date")] DateTimeOffset StartDate,
+    [property: JsonPropertyName("elapsed_time")] int ElapsedTime,
+    [property: JsonPropertyName("moving_time")] int? MovingTime,
+    [property: JsonPropertyName("distance")] decimal? Distance,
+    [property: JsonPropertyName("total_elevation_gain")] decimal? TotalElevationGain,
+    [property: JsonPropertyName("average_speed")] decimal? AverageSpeed,
+    [property: JsonPropertyName("max_speed")] decimal? MaxSpeed,
+    [property: JsonPropertyName("average_heartrate")] decimal? AverageHeartrate,
+    [property: JsonPropertyName("max_heartrate")] decimal? MaxHeartrate,
+    [property: JsonPropertyName("average_cadence")] decimal? AverageCadence,
+    [property: JsonPropertyName("average_watts")] decimal? AverageWatts,
+    [property: JsonPropertyName("max_watts")] int? MaxWatts,
+    [property: JsonPropertyName("weighted_average_watts")] int? WeightedAverageWatts,
+    [property: JsonPropertyName("device_watts")] bool? DeviceWatts,
+    [property: JsonPropertyName("kudos_count")] int? KudosCount,
+    [property: JsonPropertyName("calories")] decimal? Calories,
+    [property: JsonPropertyName("splits_metric")] JsonElement? SplitsMetric,
+    [property: JsonPropertyName("laps")] JsonElement? Laps)
+{
+    /// <summary>Strava is migrating type → sport_type; prefer the newer field.</summary>
+    public string ResolvedType => SportType ?? Type ?? "Unknown";
+}
+
+public sealed record StravaAthleteRef(
+    [property: JsonPropertyName("id")] long Id);
+
+/// <summary>A typed activity plus the verbatim response body it came from.</summary>
+public sealed record StravaActivityFetch(StravaActivityPayload Payload, JsonDocument Raw);
 
 /// <summary>
 /// Inbound webhook event per developers.strava.com/docs/webhooks. One event
