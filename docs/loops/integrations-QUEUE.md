@@ -53,7 +53,7 @@ Per brief §1.5. `IStravaApiClient` (typed HttpClient: get activity by id, list 
 - [ ] Detail-fetch failure leaves a usable summary row with `detail_fetched_at` null (test)
 - [ ] Build + full suite green
 
-## S5 — Reconciliation poller — `todo`
+## S5 — Reconciliation poller — `done 164f36f`
 
 Per brief §1.4: extend `SomaCore.IngestionJobs` with `StravaReconciliationPoller` (same `IJob` shape as `ReconciliationPoller`): per active strava connection, list activities after max(started_at) and ingest missing via S4's service. `job_runs` row per run. Trace `ingestion.source=strava.poller`.
 
@@ -63,7 +63,7 @@ Per brief §1.4: extend `SomaCore.IngestionJobs` with `StravaReconciliationPolle
 - [ ] `job_runs` written (test) — note: the Whoop poller has a known gap here (track-a-checklist); do NOT copy that gap
 - [ ] Build + full suite green
 
-## S6 — Workout dedup + snapshot merge — `todo`
+## S6 — Workout dedup + snapshot merge — `in_progress`
 
 Per brief §1.8/§1.9. `WorkoutTypeMap` (WHOOP name ↔ Strava type ↔ HK type families); merged-workout builder in `AgentInputSnapshotBuilder`: group by (start ±5 min, type family) across whoop_workouts + strava_activities (deleted_at null) + healthkit_workouts; Strava wins distance/elevation/splits-summary/zones-summary/cadence/watts, WHOOP wins strain, max duration, `sources[]` provenance. Snapshot carries `hr_zones_summary` (pct per zone) + `splits_summary` (count, fastest/slowest pace) — NOT raw arrays.
 
