@@ -85,11 +85,17 @@ param coachChatEnabled bool = false
 @description('Whether the lab upload surface on /me/labs is enabled. Privacy draft Part 1 / Section F.')
 param labsEnabled bool = false
 
+@description('Whether the Strava direct-API integration is enabled (Track D Session 3).')
+param stravaEnabled bool = false
+
+@description('Bind the Strava KV secrets onto the Container App. Separate toggle: a KV secret reference fails the deploy when the secret does not exist yet, and strava-client-id/strava-client-secret are created only when Adam registers the Strava dev account.')
+param wireStravaKeyVaultSecrets bool = false
+
 @description('Whether to bind KV-backed app secrets (postgres connection string, web/whoop client secrets, anthropic API key) onto the Container App. Set true once KV secrets are populated and the image actually consumes them.')
 param wireKeyVaultSecrets bool = false
 
 // Secrets the Container App holds, sourced from Key Vault via the UAMI.
-var kvSecrets = wireKeyVaultSecrets ? [
+var kvSecretsBase = wireKeyVaultSecrets ? [
   {
     name: 'postgres-connection-string'
     keyVaultUrl: '${keyVaultUri}secrets/postgres-connection-string'
@@ -116,6 +122,22 @@ var kvSecrets = wireKeyVaultSecrets ? [
     identity: uamiId
   }
 ] : []
+
+// Strava secret bindings ride their own toggle (see wireStravaKeyVaultSecrets).
+var stravaKvSecrets = wireStravaKeyVaultSecrets ? [
+  {
+    name: 'strava-client-id'
+    keyVaultUrl: '${keyVaultUri}secrets/strava-client-id'
+    identity: uamiId
+  }
+  {
+    name: 'strava-client-secret'
+    keyVaultUrl: '${keyVaultUri}secrets/strava-client-secret'
+    identity: uamiId
+  }
+] : []
+
+var kvSecrets = concat(kvSecretsBase, stravaKvSecrets)
 
 var staticEnv = [
   {
@@ -178,9 +200,13 @@ var staticEnv = [
     name: 'Labs__Enabled'
     value: '${labsEnabled}'
   }
+  {
+    name: 'Strava__Enabled'
+    value: '${stravaEnabled}'
+  }
 ]
 
-var kvEnv = wireKeyVaultSecrets ? [
+var kvEnvBase = wireKeyVaultSecrets ? [
   {
     name: 'ConnectionStrings__Postgres'
     secretRef: 'postgres-connection-string'
@@ -202,6 +228,19 @@ var kvEnv = wireKeyVaultSecrets ? [
     secretRef: 'anthropic-api-key'
   }
 ] : []
+
+var stravaKvEnv = wireStravaKeyVaultSecrets ? [
+  {
+    name: 'Strava__ClientId'
+    secretRef: 'strava-client-id'
+  }
+  {
+    name: 'Strava__ClientSecret'
+    secretRef: 'strava-client-secret'
+  }
+] : []
+
+var kvEnv = concat(kvEnvBase, stravaKvEnv)
 
 resource env 'Microsoft.App/managedEnvironments@2024-03-01' = {
   name: environmentName

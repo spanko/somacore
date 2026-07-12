@@ -23,6 +23,21 @@
     </div>
 }
 
+@* The entire Strava surface is flag-gated: nothing below renders while
+   Strava:Enabled is false (the default, and dev's value until Adam flips it). *@
+@if (Model.StravaEnabled && !string.IsNullOrEmpty(Model.StravaBanner))
+{
+    <p class="banner">@Model.StravaBanner</p>
+}
+
+@if (Model.StravaEnabled && Model.StravaRefreshFailed)
+{
+    <div class="banner-warning" role="alert">
+        <span class="banner-text">Your Strava connection needs to be refreshed.</span>
+        <a class="btn" href="/auth/strava/start">Reconnect Strava</a>
+    </div>
+}
+
 @if (Model.ForcedOnOpenPull)
 {
     <p class="banner">Forced on-open pull triggered (<code>?force=true</code>). Check the latest recovery's <em>Provenance</em> for <code>ingested_via = on_open_pull</code>.</p>
@@ -61,6 +76,46 @@
         <a class="btn" href="/auth/whoop/start">Connect WHOOP</a>
     }
 </section>
+
+@if (Model.StravaEnabled)
+{
+    <section class="card">
+        <h2>Strava</h2>
+        @if (Model.StravaConnected)
+        {
+            <p>
+                <span class="status-dot status-dot-ok" aria-hidden="true"></span>
+                <strong>Connected.</strong> SomaCore is receiving activity data from your Strava account.
+            </p>
+            <dl class="metrics">
+                @if (Model.StravaAthleteId is not null)
+                {
+                    <dt>Strava athlete ID</dt>
+                    <dd>@Model.StravaAthleteId</dd>
+                }
+                @if (!string.IsNullOrEmpty(Model.StravaUsername))
+                {
+                    <dt>Strava username</dt>
+                    <dd>@Model.StravaUsername</dd>
+                }
+                <dt>Connected since</dt>
+                <dd>@MountainTime.Format(Model.StravaConnectedAt)</dd>
+            </dl>
+            <p class="hint">
+                <a class="btn btn-secondary" href="/auth/strava/start">Reconnect</a>
+                <span class="hint-text">Only use this if activity data stops arriving or you see an error above.</span>
+            </p>
+            <form method="post" action="/auth/strava/disconnect" class="disconnect-form">
+                <button type="submit" class="btn-link-danger">Disconnect Strava</button>
+            </form>
+        }
+        else
+        {
+            <p>Not connected yet.</p>
+            <a class="btn" href="/auth/strava/start">Connect Strava</a>
+        }
+    </section>
+}
 
 <section class="card">
     <h2>Today's recovery</h2>

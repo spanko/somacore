@@ -185,10 +185,11 @@ public class MeScopeStalenessTests : IAsyncLifetime
         var quickLogExtraction = Substitute.For<IQuickLogExtractionService>();
         var quickLogEntries = Substitute.For<IQuickLogEntryService>();
         var quickLogOptions = Options.Create(new QuickLogOptions());
+        var stravaOptions = Options.Create(new SomaCore.Infrastructure.Strava.StravaOptions());
 
         var model = new MeModel(_db, recoveryHandler,
             NullLogger<MeModel>.Instance, authService, whoopOptions, dailyAgent,
-            quickLogExtraction, quickLogEntries, quickLogOptions);
+            quickLogExtraction, quickLogEntries, quickLogOptions, stravaOptions);
 
         // Minimal PageContext so OnGetAsync can access User claims + HttpContext.
         var httpContext = new DefaultHttpContext
@@ -207,7 +208,7 @@ public class MeScopeStalenessTests : IAsyncLifetime
                 new EmptyModelMetadataProvider(), new ModelStateDictionary()),
         };
 
-        await model.OnGetAsync(whoop: null, force: null, CancellationToken.None);
+        await model.OnGetAsync(whoop: null, strava: null, force: null, CancellationToken.None);
         return model;
     }
 }

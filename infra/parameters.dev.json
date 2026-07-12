@@ -46,6 +46,12 @@
     },
     "labsEnabled": {
       "value": true
+    },
+    "stravaEnabled": {
+      "value": false
+    },
+    "wireStravaKeyVaultSecrets": {
+      "value": false
     }
   }
 }

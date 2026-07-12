@@ -86,6 +86,12 @@ param coachChatEnabled bool = false
 @description('Whether the lab upload surface on /me/labs is enabled. Privacy draft Part 1 / Section F. Requires anthropicEnabled.')
 param labsEnabled bool = false
 
+@description('Whether the Strava direct-API integration is enabled (Track D Session 3, session-strava-integration.md). Ships false; flip only after the Strava dev account, KV secrets, and webhook subscription exist.')
+param stravaEnabled bool = false
+
+@description('Bind the Strava KV secrets (strava-client-id, strava-client-secret) onto the Container App. Separate from wireKeyVaultSecrets because a KV reference to a secret that does not exist fails the deploy — flip true only after the secrets are populated.')
+param wireStravaKeyVaultSecrets bool = false
+
 // ----- naming derived from the prefix ----------------------------------------
 
 var workspaceName  = '${namingPrefix}-law'
@@ -206,6 +212,8 @@ module containerApps 'modules/containerApps.bicep' = {
     quickLogEnabled: quickLogEnabled
     coachChatEnabled: coachChatEnabled
     labsEnabled: labsEnabled
+    stravaEnabled: stravaEnabled
+    wireStravaKeyVaultSecrets: wireStravaKeyVaultSecrets
   }
   dependsOn: [
     pgConnectionStringSecret

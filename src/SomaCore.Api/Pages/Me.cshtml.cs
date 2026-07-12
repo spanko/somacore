@@ -13,6 +13,7 @@ using SomaCore.Infrastructure.Agent;
 using SomaCore.Infrastructure.Persistence;
 using SomaCore.Infrastructure.QuickLog;
 using SomaCore.Infrastructure.Recovery;
+using SomaCore.Infrastructure.Strava;
 using SomaCore.Infrastructure.Whoop;
 
 namespace SomaCore.Api.Pages;
@@ -27,10 +28,12 @@ public sealed class MeModel(
     IDailyAgentService dailyAgent,
     IQuickLogExtractionService quickLogExtraction,
     IQuickLogEntryService quickLogEntries,
-    IOptions<QuickLogOptions> quickLogOptions) : PageModel
+    IOptions<QuickLogOptions> quickLogOptions,
+    IOptions<StravaOptions> stravaOptions) : PageModel
 {
     private readonly WhoopOptions _whoopOptions = whoopOptions.Value;
     private readonly QuickLogOptions _quickLogOptions = quickLogOptions.Value;
+    private readonly StravaOptions _stravaOptions = stravaOptions.Value;
 
     private static readonly System.Text.Json.JsonSerializerOptions DraftJsonOptions = new()
     {
@@ -76,6 +79,21 @@ public sealed class MeModel(
     public DateTimeOffset? WhoopConnectedAt { get; private set; }
     public string? WhoopBanner { get; private set; }
 
+    // ------------------------------------------------------------------
+    // Strava (session-strava-integration.md; Track D Session 3)
+    // ------------------------------------------------------------------
+
+    /// <summary>Strava card renders only when Strava:Enabled — false by
+    /// default and false in dev until Adam flips it at deploy time.</summary>
+    public bool StravaEnabled => _stravaOptions.Enabled;
+
+    public bool StravaConnected { get; private set; }
+    public bool StravaRefreshFailed { get; private set; }
+    public long? StravaAthleteId { get; private set; }
+    public string? StravaUsername { get; private set; }
+    public DateTimeOffset? StravaConnectedAt { get; private set; }
+    public string? StravaBanner { get; private set; }
+
     public RecoveryViewModel? LatestRecovery { get; private set; }
 
     public IReadOnlyList<RecoveryViewModel> RecentRecoveries { get; private set; } = Array.Empty<RecoveryViewModel>();
@@ -119,6 +137,7 @@ public sealed class MeModel(
 
     public async Task OnGetAsync(
         [Microsoft.AspNetCore.Mvc.FromQuery] string? whoop,
+        [Microsoft.AspNetCore.Mvc.FromQuery] string? strava,
         [Microsoft.AspNetCore.Mvc.FromQuery] bool? force,
         CancellationToken cancellationToken)
     {
@@ -225,6 +244,19 @@ public sealed class MeModel(
             "disconnected" => "WHOOP disconnected.",
             _ => null,
         };
+
+        if (StravaEnabled)
+        {
+            await LoadStravaConnectionAsync(cancellationToken);
+            StravaBanner = strava switch
+            {
+                "connected" => "Strava connected.",
+                "failed" => "Strava connection failed. Please try again.",
+                "cancelled" => "Strava authorization was cancelled.",
+                "disconnected" => "Strava disconnected.",
+                _ => null,
+            };
+        }
 
         var adminCheck = await authorizationService.AuthorizeAsync(User, "Admin");
         IsAdmin = adminCheck.Succeeded;
@@ -380,6 +412,47 @@ public sealed class MeModel(
     // recovery before the sleep row landed locally (race), we fall back to
     // a cycle-window overlap. The fallback runs only when the primary join
     // produces no row.
+    /// <summary>
+    /// Populate the Strava card state — mirrors the WHOOP connection load:
+    /// Active OR RefreshFailed rows surface (the latter drives the reconnect
+    /// banner); Revoked rows are already torn down and ignored.
+    /// </summary>
+    private async Task LoadStravaConnectionAsync(CancellationToken cancellationToken)
+    {
+        if (SomaCoreUserId is not { } userId)
+        {
+            return;
+        }
+
+        var connection = await dbContext.ExternalConnections
+            .AsNoTracking()
+            .Where(c => c.UserId == userId
+                     && c.Source == ConnectionSource.Strava
+                     && (c.Status == ConnectionStatus.Active
+                         || c.Status == ConnectionStatus.RefreshFailed))
+            .OrderByDescending(c => c.CreatedAt)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (connection is null)
+        {
+            return;
+        }
+
+        StravaConnected = true;
+        StravaRefreshFailed = connection.Status == ConnectionStatus.RefreshFailed;
+        StravaConnectedAt = connection.CreatedAt;
+        if (connection.ConnectionMetadata.RootElement.TryGetProperty("strava_athlete_id", out var athleteEl)
+            && athleteEl.ValueKind == System.Text.Json.JsonValueKind.Number)
+        {
+            StravaAthleteId = athleteEl.GetInt64();
+        }
+        if (connection.ConnectionMetadata.RootElement.TryGetProperty("strava_username", out var usernameEl)
+            && usernameEl.ValueKind == System.Text.Json.JsonValueKind.String)
+        {
+            StravaUsername = usernameEl.GetString();
+        }
+    }
+
     private async Task<List<RecoveryViewModel>> LoadRecentAsync(Guid userId, CancellationToken ct)
     {
         // A single WhoopCycleId can have multiple rows in whoop_recoveries —
