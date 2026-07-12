@@ -6,7 +6,7 @@ Statuses: `todo` / `in_progress` / `done <commit>` / `blocked (see INBOX)`. One 
 
 ---
 
-## S1 — Strava domain + options + migration — `todo`
+## S1 — Strava domain + options + migration — `done 2399506`
 
 Per brief §1.7 (`strava_activities` DDL) minus fields we can't fill yet is NOT acceptable — create the full schema as specified (hr_zones/splits/laps jsonb, raw payloads, deleted_at soft delete, detail_fetched_at).
 
@@ -102,3 +102,6 @@ Per `session-myfitnesspal-integration.md` §1.3 (CSV portion only — iOS is out
 *(loop appends one line per surprise — next session reads this first)*
 
 - 2026-07-10 (planning): `agent_actions` table from the Function Health brief doesn't exist — actions are jsonb on invocations; lab provenance became a validated JSON field. Expect similar brief-vs-code drift; trust the code.
+- 2026-07-12 (S1): `ConnectionSource.Strava` and the `'strava'` value in `chk_external_connections_source` already existed — drift in the queue's favor this time.
+- 2026-07-12 (S1): `dotnet dotnet-ef migrations add` emits CRLF files on Windows; CI's format-check fails on them. Run `dotnet format` after every migration add before committing.
+- 2026-07-12 (S1): evaluator caught a preexisting flaky test — `WhoopStateProtectorTests.Should_reject_a_tampered_state_token` intermittently fails (tamper-midpoint sometimes doesn't corrupt the AEAD tag). Unrelated to loop items; inbox entry filed.
