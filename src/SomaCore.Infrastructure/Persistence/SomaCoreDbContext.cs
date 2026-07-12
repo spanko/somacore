@@ -8,6 +8,7 @@ using SomaCore.Domain.HealthKitWorkouts;
 using SomaCore.Domain.JobRuns;
 using SomaCore.Domain.LabUploads;
 using SomaCore.Domain.OAuthAudit;
+using SomaCore.Domain.StravaActivities;
 using SomaCore.Domain.UserDocuments;
 using SomaCore.Domain.UserNotes;
 using SomaCore.Domain.Users;
@@ -46,6 +47,8 @@ public class SomaCoreDbContext : DbContext
     public DbSet<FoodEntry> FoodEntries => Set<FoodEntry>();
 
     public DbSet<HealthKitWorkout> HealthKitWorkouts => Set<HealthKitWorkout>();
+
+    public DbSet<StravaActivity> StravaActivities => Set<StravaActivity>();
 
     public DbSet<UserNote> UserNotes => Set<UserNote>();
 
