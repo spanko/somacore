@@ -106,70 +106,7 @@ internal static class AgentInputSnapshotBuilder
             ? sleepRows.OrderByDescending(s => s.EndAt).First().TimezoneOffset
             : "+00:00";
 
-        var workoutRows = await db.WhoopWorkouts
-            .AsNoTracking()
-            .Where(w => w.UserId == userId && w.StartAt >= since14d)
-            .OrderByDescending(w => w.StartAt)
-            .ThenByDescending(w => w.IngestedAt)
-            .Take(40)
-            .Select(w => new
-            {
-                w.WhoopWorkoutId,
-                w.StartAt,
-                w.EndAt,
-                w.SportName,
-                w.ScoreState,
-                w.Strain,
-                w.AverageHeartRate,
-                w.IngestedAt,
-            })
-            .ToListAsync(ct);
-
-        var workouts = workoutRows
-            .GroupBy(w => w.WhoopWorkoutId)
-            .Select(g => g.OrderByDescending(w => w.IngestedAt).First())
-            .OrderByDescending(w => w.StartAt)
-            .Take(10)
-            .Select(w => new WorkoutSnapshot(
-                Start: w.StartAt,
-                End: w.EndAt,
-                SportName: w.SportName,
-                ScoreState: w.ScoreState,
-                Strain: w.Strain,
-                AvgHr: w.AverageHeartRate,
-                Source: "whoop"))
-            .ToList();
-
-        // Manually logged workouts (quick-log) join the same section, with
-        // source provenance so the coach can hedge honestly ("based on what
-        // you logged"). iOS-companion rows land here too when the Strava
-        // session ships.
-        var manualWorkouts = await db.HealthKitWorkouts
-            .AsNoTracking()
-            .Where(w => w.UserId == userId && w.StartedAt >= since14d)
-            .OrderByDescending(w => w.StartedAt)
-            .Take(10)
-            .Select(w => new
-            {
-                w.StartedAt,
-                w.ElapsedSeconds,
-                w.WorkoutType,
-                w.AverageHr,
-                w.SourceBundleId,
-            })
-            .ToListAsync(ct);
-        workouts = workouts
-            .Concat(manualWorkouts.Select(w => new WorkoutSnapshot(
-                Start: w.StartedAt,
-                End: w.StartedAt.AddSeconds(w.ElapsedSeconds),
-                SportName: w.WorkoutType,
-                ScoreState: "SCORED",
-                Strain: null,
-                AvgHr: w.AverageHr,
-                Source: w.SourceBundleId == "manual" ? "manual" : "healthkit")))
-            .OrderByDescending(w => w.Start)
-            .Take(14)
-            .ToList();
+        var workouts = await BuildMergedWorkoutsAsync(db, userId, since14d, ct);
 
         // Local time-of-day computed from the most recent sleep's TZ offset.
         var localOffset = ParseOffset(localTzOffset);
@@ -310,6 +247,288 @@ internal static class AgentInputSnapshotBuilder
         return new AgentInputSnapshot(JsonSerializer.Serialize(snapshot, JsonOptions));
     }
 
+    /// <summary>
+    /// The merged-workout view (Strava brief §1.8/§1.9): one entry per
+    /// physical workout across whoop_workouts, strava_activities
+    /// (deleted_at null), and healthkit_workouts. Captures of the same
+    /// workout — start within ±5 minutes AND same <see cref="WorkoutTypeMap"/>
+    /// family — merge: Strava wins distance/elevation/speed detail and the
+    /// zone/split summaries, WHOOP wins strain, duration takes the max,
+    /// average HR prefers Strava → WHOOP → HealthKit. <c>sources</c> keeps
+    /// provenance. Summaries are rollups — raw zone/split arrays (and GPS,
+    /// polylines, kudos, gear, descriptions) NEVER enter the snapshot
+    /// (privacy Section D commitment).
+    /// </summary>
+    private static async Task<List<MergedWorkoutSnapshot>> BuildMergedWorkoutsAsync(
+        SomaCoreDbContext db,
+        Guid userId,
+        DateTimeOffset since,
+        CancellationToken ct)
+    {
+        var whoopRows = await db.WhoopWorkouts
+            .AsNoTracking()
+            .Where(w => w.UserId == userId && w.StartAt >= since)
+            .OrderByDescending(w => w.StartAt)
+            .ThenByDescending(w => w.IngestedAt)
+            .Take(40)
+            .Select(w => new
+            {
+                w.WhoopWorkoutId,
+                w.StartAt,
+                w.EndAt,
+                w.SportName,
+                w.ScoreState,
+                w.Strain,
+                w.AverageHeartRate,
+                w.MaxHeartRate,
+                w.IngestedAt,
+            })
+            .ToListAsync(ct);
+
+        var sources = new List<SourceWorkout>();
+
+        sources.AddRange(whoopRows
+            .GroupBy(w => w.WhoopWorkoutId)
+            .Select(g => g.OrderByDescending(w => w.IngestedAt).First())
+            .Select(w => new SourceWorkout(
+                Source: "whoop",
+                Family: WorkoutTypeMap.FamilyOf(w.SportName),
+                ActivityType: w.SportName,
+                Start: w.StartAt,
+                ElapsedSeconds: (int)(w.EndAt - w.StartAt).TotalSeconds)
+            {
+                ScoreState = w.ScoreState,
+                Strain = w.Strain,
+                AvgHr = w.AverageHeartRate,
+                MaxHr = w.MaxHeartRate,
+            }));
+
+        // Strava rows: typed columns only — the raw payloads (which carry
+        // GPS, polylines, kudos, gear ids, descriptions) are not selected,
+        // so they cannot leak into the snapshot.
+        var stravaRows = await db.StravaActivities
+            .AsNoTracking()
+            .Where(a => a.UserId == userId && a.StartedAt >= since && a.DeletedAt == null)
+            .OrderByDescending(a => a.StartedAt)
+            .Take(40)
+            .Select(a => new
+            {
+                a.ActivityType,
+                a.StartedAt,
+                a.ElapsedSeconds,
+                a.DistanceMeters,
+                a.TotalElevationGainM,
+                a.AverageHr,
+                a.MaxHr,
+                a.AverageCadence,
+                a.AverageWatts,
+                HrZonesJson = a.HrZones,
+                SplitsJson = a.Splits,
+            })
+            .ToListAsync(ct);
+
+        sources.AddRange(stravaRows.Select(a => new SourceWorkout(
+            Source: "strava",
+            Family: WorkoutTypeMap.FamilyOf(a.ActivityType),
+            ActivityType: a.ActivityType,
+            Start: a.StartedAt,
+            ElapsedSeconds: a.ElapsedSeconds)
+        {
+            DistanceMeters = a.DistanceMeters,
+            ElevationGainM = a.TotalElevationGainM,
+            AvgHr = a.AverageHr,
+            MaxHr = a.MaxHr,
+            AvgCadence = a.AverageCadence,
+            AvgWatts = a.AverageWatts,
+            HrZonesSummary = SummarizeHrZones(a.HrZonesJson),
+            SplitsSummary = SummarizeSplits(a.SplitsJson),
+        }));
+
+        var hkRows = await db.HealthKitWorkouts
+            .AsNoTracking()
+            .Where(w => w.UserId == userId && w.StartedAt >= since)
+            .OrderByDescending(w => w.StartedAt)
+            .Take(40)
+            .Select(w => new
+            {
+                w.StartedAt,
+                w.ElapsedSeconds,
+                w.WorkoutType,
+                w.AverageHr,
+                w.TotalDistanceM,
+                w.SourceBundleId,
+            })
+            .ToListAsync(ct);
+
+        sources.AddRange(hkRows.Select(w => new SourceWorkout(
+            Source: w.SourceBundleId == "manual" ? "manual" : "healthkit",
+            Family: WorkoutTypeMap.FamilyOf(w.WorkoutType),
+            ActivityType: w.WorkoutType,
+            Start: w.StartedAt,
+            ElapsedSeconds: w.ElapsedSeconds)
+        {
+            AvgHr = w.AverageHr,
+            DistanceMeters = w.TotalDistanceM,
+        }));
+
+        return MergeWorkouts(sources);
+    }
+
+    private static readonly TimeSpan MergeWindow = TimeSpan.FromMinutes(5);
+    private static readonly string[] SourcePriority = { "strava", "whoop", "healthkit", "manual" };
+
+    private static List<MergedWorkoutSnapshot> MergeWorkouts(List<SourceWorkout> items)
+    {
+        var merged = new List<MergedWorkoutSnapshot>();
+
+        foreach (var familyGroup in items.GroupBy(i => i.Family))
+        {
+            var ordered = familyGroup.OrderBy(i => i.Start).ToList();
+            var cluster = new List<SourceWorkout>();
+
+            foreach (var item in ordered)
+            {
+                if (cluster.Count > 0 && item.Start - cluster[0].Start > MergeWindow)
+                {
+                    merged.Add(ComposeMerged(cluster));
+                    cluster = new List<SourceWorkout>();
+                }
+                cluster.Add(item);
+            }
+            if (cluster.Count > 0)
+            {
+                merged.Add(ComposeMerged(cluster));
+            }
+        }
+
+        // Cap 20, most recent first (brief §1.9).
+        return merged
+            .OrderByDescending(w => w.Start)
+            .Take(20)
+            .ToList();
+    }
+
+    private static MergedWorkoutSnapshot ComposeMerged(List<SourceWorkout> cluster)
+    {
+        SourceWorkout? Pick(string source) => cluster.FirstOrDefault(c => c.Source == source);
+
+        var strava = Pick("strava");
+        var whoop = Pick("whoop");
+        var hk = Pick("healthkit") ?? Pick("manual");
+
+        var provenance = SourcePriority
+            .Where(s => cluster.Any(c => c.Source == s))
+            .ToList();
+
+        return new MergedWorkoutSnapshot(
+            ActivityType: strava?.ActivityType ?? whoop?.ActivityType ?? hk!.ActivityType,
+            Start: cluster.Min(c => c.Start),
+            // WHOOP truncates, Strava sometimes over-runs on auto-pause: max wins.
+            ElapsedSeconds: cluster.Max(c => c.ElapsedSeconds),
+            DistanceMeters: strava?.DistanceMeters ?? hk?.DistanceMeters,
+            ElevationGainM: strava?.ElevationGainM,
+            AvgHr: strava?.AvgHr ?? whoop?.AvgHr ?? hk?.AvgHr,
+            MaxHr: strava?.MaxHr ?? whoop?.MaxHr,
+            AvgCadence: strava?.AvgCadence,
+            AvgWatts: strava?.AvgWatts,
+            Strain: whoop?.Strain,
+            ScoreState: whoop?.ScoreState,
+            HrZonesSummary: strava?.HrZonesSummary,
+            SplitsSummary: strava?.SplitsSummary,
+            Sources: provenance);
+    }
+
+    /// <summary>
+    /// Percent-time-per-zone rollup from the stored Strava zones response
+    /// (array of {type, distribution_buckets:[{min,max,time}]}). The coach
+    /// reasons about "22 min of zone 3", never raw per-second HR.
+    /// </summary>
+    private static IReadOnlyList<HrZonePct>? SummarizeHrZones(JsonDocument? hrZones)
+    {
+        if (hrZones is null) return null;
+        try
+        {
+            foreach (var zoneSet in hrZones.RootElement.EnumerateArray())
+            {
+                if (!zoneSet.TryGetProperty("type", out var type)
+                    || type.GetString() != "heartrate"
+                    || !zoneSet.TryGetProperty("distribution_buckets", out var buckets))
+                {
+                    continue;
+                }
+
+                var raw = buckets.EnumerateArray()
+                    .Select(b => new
+                    {
+                        Min = b.TryGetProperty("min", out var min) ? min.GetDecimal() : 0,
+                        Max = b.TryGetProperty("max", out var max) ? max.GetDecimal() : 0,
+                        Time = b.TryGetProperty("time", out var time) ? time.GetDecimal() : 0,
+                    })
+                    .ToList();
+                var total = raw.Sum(b => b.Time);
+                if (total <= 0) return null;
+
+                return raw
+                    .Select((b, i) => new HrZonePct(
+                        Zone: i + 1,
+                        MinBpm: (int)b.Min,
+                        MaxBpm: (int)b.Max,
+                        Pct: Math.Round(b.Time / total * 100, 1)))
+                    .ToList();
+            }
+            return null;
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or FormatException)
+        {
+            // Malformed zones payload — drop the summary, never the workout.
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Count + fastest/slowest pace rollup from the stored splits_metric
+    /// array. Raw splits (with per-split HR) stay server-side.
+    /// </summary>
+    private static SplitsSummary? SummarizeSplits(JsonDocument? splits)
+    {
+        if (splits is null) return null;
+        try
+        {
+            var paces = new List<decimal>();
+            foreach (var split in splits.RootElement.EnumerateArray())
+            {
+                decimal? pace = null;
+                if (split.TryGetProperty("moving_time", out var mt)
+                    && split.TryGetProperty("distance", out var dist)
+                    && dist.GetDecimal() > 0)
+                {
+                    pace = mt.GetDecimal() / (dist.GetDecimal() / 1000m);
+                }
+                else if (split.TryGetProperty("average_speed", out var speed)
+                    && speed.GetDecimal() > 0)
+                {
+                    pace = 1000m / speed.GetDecimal();
+                }
+                if (pace is decimal p)
+                {
+                    paces.Add(Math.Round(p, 0));
+                }
+            }
+
+            var count = splits.RootElement.GetArrayLength();
+            if (count == 0) return null;
+
+            return new SplitsSummary(
+                SplitCount: count,
+                FastestSplitPaceSecondsPerKm: paces.Count > 0 ? paces.Min() : null,
+                SlowestSplitPaceSecondsPerKm: paces.Count > 0 ? paces.Max() : null);
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or FormatException)
+        {
+            return null;
+        }
+    }
+
     private static TimeSpan ParseOffset(string offset)
     {
         // Accepts "+00:00" / "-06:00" formats; falls back to zero on garbage.
@@ -336,14 +555,51 @@ internal static class AgentInputSnapshotBuilder
         decimal? EfficiencyPct,
         int? TotalSleepMin);
 
-    private sealed record WorkoutSnapshot(
+    /// <summary>
+    /// One workout capture from one source, pre-merge. Positional core plus
+    /// init-only extras so each source sets only what it knows.
+    /// </summary>
+    private sealed record SourceWorkout(
+        string Source,
+        string Family,
+        string ActivityType,
         DateTimeOffset Start,
-        DateTimeOffset End,
-        string SportName,
-        string ScoreState,
-        decimal? Strain,
+        int ElapsedSeconds)
+    {
+        public string? ScoreState { get; init; }
+        public decimal? Strain { get; init; }
+        public int? AvgHr { get; init; }
+        public int? MaxHr { get; init; }
+        public decimal? DistanceMeters { get; init; }
+        public decimal? ElevationGainM { get; init; }
+        public decimal? AvgCadence { get; init; }
+        public decimal? AvgWatts { get; init; }
+        public IReadOnlyList<HrZonePct>? HrZonesSummary { get; init; }
+        public SplitsSummary? SplitsSummary { get; init; }
+    }
+
+    private sealed record MergedWorkoutSnapshot(
+        string ActivityType,
+        DateTimeOffset Start,
+        int ElapsedSeconds,
+        decimal? DistanceMeters,
+        decimal? ElevationGainM,
         int? AvgHr,
-        string Source);
+        int? MaxHr,
+        decimal? AvgCadence,
+        decimal? AvgWatts,
+        decimal? Strain,
+        string? ScoreState,
+        IReadOnlyList<HrZonePct>? HrZonesSummary,
+        SplitsSummary? SplitsSummary,
+        IReadOnlyList<string> Sources);
+
+    private sealed record HrZonePct(int Zone, int MinBpm, int MaxBpm, decimal Pct);
+
+    private sealed record SplitsSummary(
+        int SplitCount,
+        decimal? FastestSplitPaceSecondsPerKm,
+        decimal? SlowestSplitPaceSecondsPerKm);
 
     private sealed record FoodEntrySnapshot(
         DateOnly MealDate,

@@ -290,8 +290,11 @@ public class QuickLogTests : IAsyncLifetime
         rollup.GetProperty("protein_g").GetDecimal().Should().Be(80);
         rollup.GetProperty("meals_logged").GetInt32().Should().Be(2);
 
+        // S6 merged-workout shape: per-workout provenance is a sources[]
+        // array (was a singular source before the Strava merge landed).
         var workouts = root.GetProperty("workouts").EnumerateArray().ToList();
-        workouts.Should().Contain(w => w.GetProperty("source").GetString() == "manual");
+        workouts.Should().Contain(w => w.GetProperty("sources").EnumerateArray()
+            .Any(s => s.GetString() == "manual"));
 
         // Food NAMES never enter the snapshot — only totals + timing
         // (privacy draft Part 4 / Section D commitment).
