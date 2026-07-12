@@ -13,7 +13,7 @@ public sealed class JobRunConfiguration : IEntityTypeConfiguration<JobRun>
         {
             t.HasCheckConstraint(
                 "chk_job_runs_job_name",
-                "job_name IN ('reconciliation-poller', 'token-refresh-sweeper')");
+                "job_name IN ('reconciliation-poller', 'token-refresh-sweeper', 'strava-reconciliation-poller')");
         });
 
         builder.HasKey(j => j.Id);

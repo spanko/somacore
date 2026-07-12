@@ -37,6 +37,7 @@ var connectionString = builder.Configuration.GetConnectionString("Postgres")
 builder.Services.AddSomaCoreInfrastructure(connectionString);
 builder.Services.AddSomaCoreKeyVault(builder.Configuration);
 builder.Services.AddSomaCoreWhoop(builder.Configuration);
+builder.Services.AddSomaCoreStrava(builder.Configuration);
 builder.Services.AddSomaCoreTelemetry(builder.Configuration);
 
 // Application Insights exporter for the ingestion trace contract (ADR 0011).
@@ -54,6 +55,7 @@ if (!string.IsNullOrWhiteSpace(aiConnectionString))
 builder.Services.AddScoped<JobDispatcher>();
 builder.Services.AddScoped<IJob, ReconciliationPoller>();
 builder.Services.AddScoped<IJob, TokenRefreshSweeper>();
+builder.Services.AddScoped<IJob, StravaReconciliationPoller>();
 
 using var host = builder.Build();
 using var cts = new CancellationTokenSource();
