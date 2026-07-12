@@ -73,7 +73,7 @@ Per brief §1.8/§1.9. `WorkoutTypeMap` (WHOOP name ↔ Strava type ↔ HK type 
 - [ ] Single-source activities pass through unmerged (test)
 - [ ] Build + full suite green
 
-## S7 — /me connect surface + flag wiring — `todo`
+## S7 — /me connect surface + flag wiring — `done 7e5c8de`
 
 Connect/disconnect Strava on `/me` (mirror the WHOOP connect card, renders only when `Strava:Enabled`); `stravaEnabled` bicep param → `Strava__Enabled` env (mirror `labsEnabled` wiring) — **false in `parameters.dev.json`**; the two KV secret bindings added to bicep but `wireKeyVaultSecrets` handling must tolerate the secrets not existing yet (Adam hasn't created the account) — follow how bicep handles this today; if it can't tolerate absence, put the secret bindings behind their own toggle and note it in the queue Learnings.
 
@@ -83,7 +83,7 @@ Connect/disconnect Strava on `/me` (mirror the WHOOP connect card, renders only 
 - [ ] `az bicep build --file infra/main.bicep` succeeds (syntax check only — NO deployment)
 - [ ] Build + full suite green
 
-## M1 — MFP CSV upload path — `todo`
+## M1 — MFP CSV upload path — `in_progress`
 
 Per `session-myfitnesspal-integration.md` §1.3 (CSV portion only — iOS is out of loop scope): `/me/food` accepts the MFP data-export ZIP; unpack (size cap 50 MB, zip-slip safe — validate entry paths); locate the meal-nutrition CSV; parse per-meal-slot rows into `mfp_food_entries` with `source='csv_upload'`, `ingested_via='csv_upload'`, idempotent on the existing (user, date, slot, source) index — re-upload of overlapping history must not duplicate or double-merge (upsert REPLACES a csv_upload row's values, unlike quick-log's manual merge — document why inline). New flag `Mfp:CsvUploadEnabled` default false, bicep-wired false in dev. Fixture: build a synthetic MFP-export-shaped ZIP in test assets from the MFP help-center column description; Adam's REAL export is the post-loop acceptance gate (INBOX note pre-written).
 
@@ -112,4 +112,5 @@ Per `session-myfitnesspal-integration.md` §1.3 (CSV portion only — iOS is out
 - 2026-07-12 (S3): the queue's "ingestion.source=strava.webhook" shorthand maps to ADR 0011's tag pair (ingestion.source=strava + ingestion.trigger=webhook), matching how the WHOOP drainer emits the same contract.
 - 2026-07-12 (S4): the brief's "detail in one API call" is wrong for HR zones — GET /activities/{id} carries splits_metric + laps, but zones need GET /activities/{id}/zones. The detail unit = the zones call; zones 404 (no HR data) counts as a completed detail pass, not a retryable failure.
 - 2026-07-12 (S6): the brief's `latest_workouts` section already existed as `workouts` (predates the brief) — upgraded in place rather than renamed; per-workout provenance changed `source` (string) → `sources` (array), one QuickLog test assertion updated to match. Cap is 20 most-recent (recency only — the brief's "+ strain desc" tiebreak dropped as meaningless within a recency sort).
+- 2026-07-12 (S7): as the queue predicted, Container Apps KV secret references fail the deploy when the secret doesn't exist — the strava-client-id/secret bindings sit behind their own `wireStravaKeyVaultSecrets` toggle (false in dev params). Flip it together with `stravaEnabled` once Adam creates the Strava dev account. Note: `Strava__RedirectUri`/`Strava__WebhookVerifyToken`/`Strava__WebhookSubscriptionId` env wiring was NOT added (outside S7 scope) — Adam adds those at flag-flip time, mirroring `whoopRedirectUri`.
 - 2026-07-12 (S1): evaluator caught a preexisting flaky test — `WhoopStateProtectorTests.Should_reject_a_tampered_state_token` intermittently fails (tamper-midpoint sometimes doesn't corrupt the AEAD tag). Unrelated to loop items; inbox entry filed.
