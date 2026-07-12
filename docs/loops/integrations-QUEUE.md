@@ -63,7 +63,7 @@ Per brief §1.4: extend `SomaCore.IngestionJobs` with `StravaReconciliationPolle
 - [ ] `job_runs` written (test) — note: the Whoop poller has a known gap here (track-a-checklist); do NOT copy that gap
 - [ ] Build + full suite green
 
-## S6 — Workout dedup + snapshot merge — `in_progress`
+## S6 — Workout dedup + snapshot merge — `done 08d9ca7`
 
 Per brief §1.8/§1.9. `WorkoutTypeMap` (WHOOP name ↔ Strava type ↔ HK type families); merged-workout builder in `AgentInputSnapshotBuilder`: group by (start ±5 min, type family) across whoop_workouts + strava_activities (deleted_at null) + healthkit_workouts; Strava wins distance/elevation/splits-summary/zones-summary/cadence/watts, WHOOP wins strain, max duration, `sources[]` provenance. Snapshot carries `hr_zones_summary` (pct per zone) + `splits_summary` (count, fastest/slowest pace) — NOT raw arrays.
 
@@ -111,4 +111,5 @@ Per `session-myfitnesspal-integration.md` §1.3 (CSV portion only — iOS is out
 - 2026-07-12 (S3): Strava has no per-event id and does not sign webhook bodies; dedupe key (subscription_id, object_id, aspect_type, event_time) is composed into source_event_id + source_trace_id to reuse the existing unique index. Subscription-id check added via `StravaOptions.WebhookSubscriptionId` (0 = pre-registration, check skipped).
 - 2026-07-12 (S3): the queue's "ingestion.source=strava.webhook" shorthand maps to ADR 0011's tag pair (ingestion.source=strava + ingestion.trigger=webhook), matching how the WHOOP drainer emits the same contract.
 - 2026-07-12 (S4): the brief's "detail in one API call" is wrong for HR zones — GET /activities/{id} carries splits_metric + laps, but zones need GET /activities/{id}/zones. The detail unit = the zones call; zones 404 (no HR data) counts as a completed detail pass, not a retryable failure.
+- 2026-07-12 (S6): the brief's `latest_workouts` section already existed as `workouts` (predates the brief) — upgraded in place rather than renamed; per-workout provenance changed `source` (string) → `sources` (array), one QuickLog test assertion updated to match. Cap is 20 most-recent (recency only — the brief's "+ strain desc" tiebreak dropped as meaningless within a recency sort).
 - 2026-07-12 (S1): evaluator caught a preexisting flaky test — `WhoopStateProtectorTests.Should_reject_a_tampered_state_token` intermittently fails (tamper-midpoint sometimes doesn't corrupt the AEAD tag). Unrelated to loop items; inbox entry filed.
