@@ -43,7 +43,7 @@ Per brief §1.3. GET verify-challenge (echo `hub.challenge` when `hub.verify_tok
 - [ ] Trace contract: `ingestion.source=strava.webhook` per ADR 0011 (assert Activity source/tags in test, mirroring existing Whoop trace tests if any)
 - [ ] Build + full suite green
 
-## S4 — Activity ingest + detail-fetch policy — `todo`
+## S4 — Activity ingest + detail-fetch policy — `done 01463b5`
 
 Per brief §1.5. `IStravaApiClient` (typed HttpClient: get activity by id, list athlete activities after epoch) + `StravaActivityIngestService`: upsert by `strava_activity_id`; detail fetch (hr_zones/splits/laps) synchronously when `elapsed_seconds > DetailFetchMinSeconds`, storing raw summary + raw detail payloads; detail-fetch failure logs warn + leaves row for poller retry, never fails the ingest.
 
@@ -110,4 +110,5 @@ Per `session-myfitnesspal-integration.md` §1.3 (CSV portion only — iOS is out
 - 2026-07-12 (S3): the shared webhook_events queue had a single consumer claiming ALL received rows — the WHOOP drainer would have claimed and discarded Strava events. Its claim SQL gained `AND source = 'whoop'` (one line, behavior-preserving, regression-tested). Inbox entry filed for Adam's review.
 - 2026-07-12 (S3): Strava has no per-event id and does not sign webhook bodies; dedupe key (subscription_id, object_id, aspect_type, event_time) is composed into source_event_id + source_trace_id to reuse the existing unique index. Subscription-id check added via `StravaOptions.WebhookSubscriptionId` (0 = pre-registration, check skipped).
 - 2026-07-12 (S3): the queue's "ingestion.source=strava.webhook" shorthand maps to ADR 0011's tag pair (ingestion.source=strava + ingestion.trigger=webhook), matching how the WHOOP drainer emits the same contract.
+- 2026-07-12 (S4): the brief's "detail in one API call" is wrong for HR zones — GET /activities/{id} carries splits_metric + laps, but zones need GET /activities/{id}/zones. The detail unit = the zones call; zones 404 (no HR data) counts as a completed detail pass, not a retryable failure.
 - 2026-07-12 (S1): evaluator caught a preexisting flaky test — `WhoopStateProtectorTests.Should_reject_a_tampered_state_token` intermittently fails (tamper-midpoint sometimes doesn't corrupt the AEAD tag). Unrelated to loop items; inbox entry filed.
