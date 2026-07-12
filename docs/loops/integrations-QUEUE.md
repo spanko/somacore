@@ -31,7 +31,7 @@ Mirror `WhoopOAuthService`/`WhoopOAuthClient`/`WhoopAccessTokenCache` including 
 - [ ] Tokens go to IKeyVaultSecretsClient, never the DB (grep: no token column/property persisted)
 - [ ] Build + full suite green
 
-## S3 — Webhook receiver + drainer routing — `todo`
+## S3 — Webhook receiver + drainer routing — `done 1b57479`
 
 Per brief §1.3. GET verify-challenge (echo `hub.challenge` when `hub.verify_token` matches `StravaOptions.WebhookVerifyToken`); POST enqueues to the existing `webhook_events` table and returns 200 within the handler (do work in the drainer, never inline — Strava's 2-second ack rule). Drainer routes: activity create/update → fetch+upsert (S4's service — stub the interface now if S4 not yet built, but prefer building S3+S4's seam together); activity delete → soft delete (`deleted_at`); athlete deauth → mark connection revoked + purge tokens + audit row. Idempotency: dedupe on (subscription_id, object_id, aspect_type, event_time).
 
@@ -107,4 +107,7 @@ Per `session-myfitnesspal-integration.md` §1.3 (CSV portion only — iOS is out
 - 2026-07-12 (S2): the queue's "deauthorize via POST /oauth/revoke" endpoint doesn't exist at Strava — the real one is `/oauth/deauthorize`. Made it configurable (`StravaOptions.DeauthorizeUri`) defaulting to the real endpoint.
 - 2026-07-12 (S2): Strava reports granted scopes as a comma-separated `scope` query param on the callback redirect, NOT in the token body (unlike WHOOP); the athlete summary is inlined in the code-exchange response, so no separate profile fetch.
 - 2026-07-12 (S2): the WHOOP token cache never writes token_refresh_success/failed audit rows (constants existed unused). Strava's cache does — S2 DoD required it; consider backporting to WHOOP.
+- 2026-07-12 (S3): the shared webhook_events queue had a single consumer claiming ALL received rows — the WHOOP drainer would have claimed and discarded Strava events. Its claim SQL gained `AND source = 'whoop'` (one line, behavior-preserving, regression-tested). Inbox entry filed for Adam's review.
+- 2026-07-12 (S3): Strava has no per-event id and does not sign webhook bodies; dedupe key (subscription_id, object_id, aspect_type, event_time) is composed into source_event_id + source_trace_id to reuse the existing unique index. Subscription-id check added via `StravaOptions.WebhookSubscriptionId` (0 = pre-registration, check skipped).
+- 2026-07-12 (S3): the queue's "ingestion.source=strava.webhook" shorthand maps to ADR 0011's tag pair (ingestion.source=strava + ingestion.trigger=webhook), matching how the WHOOP drainer emits the same contract.
 - 2026-07-12 (S1): evaluator caught a preexisting flaky test — `WhoopStateProtectorTests.Should_reject_a_tampered_state_token` intermittently fails (tamper-midpoint sometimes doesn't corrupt the AEAD tag). Unrelated to loop items; inbox entry filed.
