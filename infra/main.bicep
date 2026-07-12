@@ -92,6 +92,9 @@ param stravaEnabled bool = false
 @description('Bind the Strava KV secrets (strava-client-id, strava-client-secret) onto the Container App. Separate from wireKeyVaultSecrets because a KV reference to a secret that does not exist fails the deploy — flip true only after the secrets are populated.')
 param wireStravaKeyVaultSecrets bool = false
 
+@description('Whether the MFP CSV-upload surface on /me/food is enabled (session-myfitnesspal-integration.md §1.3). Ships false; flip after the real-export acceptance gate passes.')
+param mfpCsvUploadEnabled bool = false
+
 // ----- naming derived from the prefix ----------------------------------------
 
 var workspaceName  = '${namingPrefix}-law'
@@ -214,6 +217,7 @@ module containerApps 'modules/containerApps.bicep' = {
     labsEnabled: labsEnabled
     stravaEnabled: stravaEnabled
     wireStravaKeyVaultSecrets: wireStravaKeyVaultSecrets
+    mfpCsvUploadEnabled: mfpCsvUploadEnabled
   }
   dependsOn: [
     pgConnectionStringSecret

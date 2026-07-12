@@ -8,6 +8,7 @@ using SomaCore.Infrastructure.Agent;
 using SomaCore.Infrastructure.Backfill;
 using SomaCore.Infrastructure.Coach;
 using SomaCore.Infrastructure.Labs;
+using SomaCore.Infrastructure.Mfp;
 using SomaCore.Infrastructure.Observability;
 using SomaCore.Infrastructure.Persistence;
 using SomaCore.Infrastructure.Persistence.Interceptors;
@@ -207,6 +208,13 @@ public static class DependencyInjection
             .AddOptions<LabsOptions>()
             .Bind(configuration.GetSection(LabsOptions.SectionName));
         services.AddScoped<ILabUploadService, LabUploadService>();
+
+        // MFP CSV upload (/me/food, session-myfitnesspal-integration.md §1.3).
+        // No Anthropic dependency — the export is parsed deterministically.
+        services
+            .AddOptions<MfpOptions>()
+            .Bind(configuration.GetSection(MfpOptions.SectionName));
+        services.AddScoped<IMfpCsvUploadService, MfpCsvUploadService>();
 
         return services;
     }

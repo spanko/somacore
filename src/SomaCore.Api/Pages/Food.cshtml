@@ -1,0 +1,64 @@
+@page "/me/food"
+@model SomaCore.Api.Pages.FoodModel
+@{
+    ViewData["Title"] = "/me/food";
+}
+
+<h1>Food history</h1>
+<p class="subtitle">Upload your MyFitnessPal data export to backfill meal history.</p>
+
+@if (!string.IsNullOrEmpty(Model.Banner))
+{
+    <p class="banner">@Model.Banner</p>
+}
+@if (!string.IsNullOrEmpty(Model.Error))
+{
+    <p class="banner-warning" role="alert">@Model.Error</p>
+}
+
+<section class="card">
+    <h2>Upload MFP export</h2>
+    <p class="hint">
+        Export from myfitnesspal.com (desktop, Premium): Settings → Download my data.
+        MFP emails a ZIP — upload it here unmodified. Re-uploading overlapping
+        history is safe: each day's meals are replaced, never double-counted.
+    </p>
+    <form method="post" asp-page-handler="Upload" enctype="multipart/form-data">
+        <input type="file" name="file" accept=".zip,application/zip" required />
+        <button type="submit" class="btn">Upload</button>
+    </form>
+</section>
+
+@if (Model.RecentRows.Count > 0)
+{
+    <section class="card">
+        <h2>Last 14 days from CSV</h2>
+        <div class="table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Meal</th>
+                        <th>Calories</th>
+                        <th>Protein (g)</th>
+                        <th>Carbs (g)</th>
+                        <th>Fat (g)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in Model.RecentRows)
+                    {
+                        <tr>
+                            <td>@row.MealDate.ToString("yyyy-MM-dd")</td>
+                            <td>@row.MealSlot</td>
+                            <td>@row.Calories</td>
+                            <td>@row.ProteinG</td>
+                            <td>@row.CarbsG</td>
+                            <td>@row.FatG</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </section>
+}

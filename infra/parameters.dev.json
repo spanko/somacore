@@ -52,6 +52,9 @@
     },
     "wireStravaKeyVaultSecrets": {
       "value": false
+    },
+    "mfpCsvUploadEnabled": {
+      "value": false
     }
   }
 }

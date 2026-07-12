@@ -88,6 +88,9 @@ param labsEnabled bool = false
 @description('Whether the Strava direct-API integration is enabled (Track D Session 3).')
 param stravaEnabled bool = false
 
+@description('Whether the MFP CSV-upload surface on /me/food is enabled (MFP session brief §1.3).')
+param mfpCsvUploadEnabled bool = false
+
 @description('Bind the Strava KV secrets onto the Container App. Separate toggle: a KV secret reference fails the deploy when the secret does not exist yet, and strava-client-id/strava-client-secret are created only when Adam registers the Strava dev account.')
 param wireStravaKeyVaultSecrets bool = false
 
@@ -203,6 +206,10 @@ var staticEnv = [
   {
     name: 'Strava__Enabled'
     value: '${stravaEnabled}'
+  }
+  {
+    name: 'Mfp__CsvUploadEnabled'
+    value: '${mfpCsvUploadEnabled}'
   }
 ]
 
