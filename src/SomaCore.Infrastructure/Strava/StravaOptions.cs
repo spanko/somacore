@@ -41,6 +41,14 @@ public sealed class StravaOptions
     public string WebhookVerifyToken { get; init; } = string.Empty;
 
     /// <summary>
+    /// Our push-subscription id, assigned by Strava at registration. Events
+    /// carrying a different subscription_id are dropped (brief §1.3). 0 =
+    /// not yet registered — the check is skipped so the first deploy can
+    /// complete the chicken-and-egg registration handshake.
+    /// </summary>
+    public long WebhookSubscriptionId { get; init; }
+
+    /// <summary>
     /// Activities longer than this get a synchronous detail fetch (hr zones,
     /// splits, laps) at ingest; shorter ones keep the summary only. Brief §1.5.
     /// </summary>

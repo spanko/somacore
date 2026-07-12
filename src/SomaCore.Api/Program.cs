@@ -54,6 +54,7 @@ if (!string.IsNullOrWhiteSpace(aiConnectionString))
         .WithTracing(t => t.AddAzureMonitorTraceExporter(o => o.ConnectionString = aiConnectionString));
 }
 builder.Services.AddHostedService<SomaCore.Api.Whoop.WhoopWebhookDrainer>();
+builder.Services.AddHostedService<SomaCore.Api.Strava.StravaWebhookDrainer>();
 
 // Container Apps ingress terminates TLS; the container sees plain HTTP. Honor
 // X-Forwarded-Proto/Host so OIDC redirect_uri composition uses https://app-dev...
@@ -156,6 +157,7 @@ app.MapRazorPages();
 app.MapWhoopAuthEndpoints();
 app.MapWhoopWebhookEndpoint();
 app.MapStravaAuthEndpoints();
+app.MapStravaWebhookEndpoint();
 
 app.Run();
 

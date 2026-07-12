@@ -100,7 +100,7 @@ public sealed class WhoopWebhookDrainer(
             .FromSqlRaw(
                 """
                 SELECT * FROM webhook_events
-                WHERE status = 'received'
+                WHERE status = 'received' AND source = 'whoop'
                 ORDER BY received_at
                 LIMIT {0}
                 FOR UPDATE SKIP LOCKED
