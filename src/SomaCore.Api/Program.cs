@@ -13,9 +13,11 @@ using Serilog.Formatting.Compact;
 
 using SomaCore.Api;
 using SomaCore.Api.Authentication;
+using SomaCore.Api.Strava;
 using SomaCore.Api.Whoop;
 using SomaCore.Infrastructure;
 using SomaCore.Infrastructure.Observability;
+using SomaCore.Infrastructure.Strava;
 using SomaCore.Infrastructure.Whoop;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -35,9 +37,11 @@ var connectionString = builder.Configuration.GetConnectionString("Postgres")
 builder.Services.AddSomaCoreInfrastructure(connectionString);
 builder.Services.AddSomaCoreKeyVault(builder.Configuration);
 builder.Services.AddSomaCoreWhoop(builder.Configuration);
+builder.Services.AddSomaCoreStrava(builder.Configuration);
 builder.Services.AddSomaCoreAgent(builder.Configuration);
 builder.Services.AddSomaCoreTelemetry(builder.Configuration);
 builder.Services.AddSingleton<IWhoopStateProtector, WhoopStateProtector>();
+builder.Services.AddSingleton<IStravaStateProtector, StravaStateProtector>();
 
 // Application Insights exporter for the ingestion trace contract (ADR 0011).
 // Opt-in via Telemetry:ApplicationInsightsConnectionString (typically a Key
@@ -151,6 +155,7 @@ app.MapGet("/admin/health/live", () => Results.Ok(new { status = "ok" }))
 app.MapRazorPages();
 app.MapWhoopAuthEndpoints();
 app.MapWhoopWebhookEndpoint();
+app.MapStravaAuthEndpoints();
 
 app.Run();
 

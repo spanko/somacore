@@ -15,6 +15,7 @@ using SomaCore.Infrastructure.QuickLog;
 using SomaCore.Infrastructure.Recovery;
 using SomaCore.Infrastructure.Secrets;
 using SomaCore.Infrastructure.Sleep;
+using SomaCore.Infrastructure.Strava;
 using SomaCore.Infrastructure.Whoop;
 using SomaCore.Infrastructure.Workout;
 
@@ -88,6 +89,36 @@ public static class DependencyInjection
         services.AddScoped<IWhoopSleepIngestionHandler, WhoopSleepIngestionHandler>();
         services.AddScoped<IWhoopWorkoutIngestionHandler, WhoopWorkoutIngestionHandler>();
         services.AddScoped<IWhoopBackfillService, WhoopBackfillService>();
+
+        return services;
+    }
+
+    /// <summary>
+    /// Strava direct-API integration (Track D Session 3, S2). Unlike WHOOP's
+    /// registration, options carry no [Required] validation — the section is
+    /// expected to be absent while <see cref="StravaOptions.Enabled"/> is
+    /// false, and every endpoint 404s on the flag. Registrations are
+    /// unconditional (same as WHOOP's) so a flag flip is config-only.
+    /// </summary>
+    public static IServiceCollection AddSomaCoreStrava(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        services
+            .AddOptions<StravaOptions>()
+            .Bind(configuration.GetSection(StravaOptions.SectionName));
+
+        services
+            .AddHttpClient<IStravaOAuthClient, StravaOAuthClient>(client =>
+            {
+                client.Timeout = TimeSpan.FromSeconds(15);
+                client.DefaultRequestHeaders.Accept.Add(
+                    new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
+            });
+
+        // Token cache is a singleton so the in-memory entries survive across requests;
+        // it pulls a scoped DbContext via IServiceScopeFactory when it needs to write.
+        services.AddSingleton<IStravaAccessTokenCache, StravaAccessTokenCache>();
 
         return services;
     }

@@ -19,6 +19,21 @@ public sealed class StravaOptions
 
     public string RedirectUri { get; init; } = string.Empty;
 
+    public string AuthorizeUri { get; init; } = "https://www.strava.com/oauth/authorize";
+
+    public string TokenUri { get; init; } = "https://www.strava.com/oauth/token";
+
+    /// <summary>
+    /// Best-effort revocation on disconnect. Strava's published endpoint is
+    /// /oauth/deauthorize (the session brief's "/oauth/revoke" doesn't exist
+    /// in Strava's docs) — configurable here so a wire-level surprise is a
+    /// config change, not a code change.
+    /// </summary>
+    public string DeauthorizeUri { get; init; } = "https://www.strava.com/oauth/deauthorize";
+
+    /// <summary>Comma-separated Strava scopes (Strava's wire format, unlike WHOOP's space-separated).</summary>
+    public string Scopes { get; init; } = "activity:read_all";
+
     /// <summary>
     /// Shared token echoed back by Strava's webhook verify-challenge GET
     /// (hub.verify_token). Chosen by us at subscription registration time.
