@@ -19,6 +19,12 @@ RUN dotnet restore src/SomaCore.IngestionJobs/SomaCore.IngestionJobs.csproj
 
 COPY src/ ./src/
 
+# Agent persona + bounds docs (ADR 0012) — Infrastructure.csproj declares
+# them as Content items at ../../docs/, so they must exist at /src/docs/
+# during dotnet publish. Same line as the API Dockerfile; this one was
+# missed when the persona files were added, breaking jobs builds silently.
+COPY docs/agent-voice-and-persona.md docs/agent-bounds.md ./docs/
+
 RUN dotnet publish src/SomaCore.IngestionJobs/SomaCore.IngestionJobs.csproj \
     --configuration Release \
     --no-restore \
