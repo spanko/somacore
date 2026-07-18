@@ -274,7 +274,7 @@ Three deploy paths. **Pick the one(s) that match what you changed.**
 | Changed | Use | What it touches | Time |
 |---|---|---|---|
 | C# code under `SomaCore.Api/` (Razor pages, endpoints, etc.) OR `Infrastructure/` / `Domain/` that the API consumes | [`scripts/deploy-app.ps1`](../scripts/deploy-app.ps1) | `somacore-api` Container App image only | ~90 sec |
-| C# code under `SomaCore.IngestionJobs/` OR `Infrastructure/` / `Domain/` that the poller consumes | [`scripts/deploy-jobs.ps1`](../scripts/deploy-jobs.ps1) | `somacore-poller` Container Apps Job image only | ~90 sec |
+| C# code under `SomaCore.IngestionJobs/` OR `Infrastructure/` / `Domain/` that the jobs consume | [`scripts/deploy-jobs.ps1`](../scripts/deploy-jobs.ps1) | `somacore-poller` + `somacore-refresh-sweeper` Job images (they share `somacore-jobs`) | ~90 sec |
 | `infra/**` (new resource, env var, role, secret binding, Postgres config) | [`scripts/deploy-infra.ps1`](../scripts/deploy-infra.ps1) | Whole template | 2.5–5 min |
 
 **Most substantive Track A-era changes touch shared `Infrastructure/` + `Domain/` code, which the API AND the poller both reference. Run BOTH `deploy-app.ps1` and `deploy-jobs.ps1` in those cases.** Otherwise the API ships new behavior and the poller keeps running the previous binary, which can produce silent drift (e.g. new handler registered in the API but the poller still calls the old signature).
@@ -306,7 +306,7 @@ The script ends by calling `/admin/health/live` against the live FQDN — quick 
 .\scripts\deploy-jobs.ps1
 ```
 
-Mirror of `deploy-app.ps1` for the IngestionJobs binary. Builds `src/SomaCore.IngestionJobs/Dockerfile` into `somacoredevacr.azurecr.io/somacore-jobs:<git-sha>`, then `az containerapp job update --image ...` on `somacore-poller`. The next scheduled execution (per the cron on the job) picks up the new image; for an immediate test:
+Mirror of `deploy-app.ps1` for the IngestionJobs binary. Builds `src/SomaCore.IngestionJobs/Dockerfile` into `somacoredevacr.azurecr.io/somacore-jobs:<git-sha>`, then `az containerapp job update --image ...` on **every job that runs the image** (`somacore-poller` and `somacore-refresh-sweeper` — updating only one strands the other on a stale binary; the sweeper drifted ~6 weeks that way before 2026-07-18). The next scheduled execution (per the cron on each job) picks up the new image; for an immediate test:
 
 ```powershell
 az containerapp job start -g somacore-dev-rg -n somacore-poller

@@ -1,13 +1,15 @@
 # scripts/deploy-jobs.ps1
 #
 # Mirror of deploy-app.ps1 for the IngestionJobs binary. Builds the
-# SomaCore.IngestionJobs image in ACR and updates the Container Apps Job's
-# image to the new tag. Targets ONLY the somacore-poller job — does not touch
+# SomaCore.IngestionJobs image in ACR and updates EVERY Container Apps Job
+# that runs it — the poller and the refresh sweeper share the somacore-jobs
+# image, and updating only one strands the other on a stale binary (found
+# 2026-07-18: the sweeper had drifted ~6 weeks behind). Does not touch
 # Postgres, Key Vault, or the API Container App.
 #
 # Use this for any change under src/SomaCore.IngestionJobs/ or shared code
-# under src/SomaCore.Infrastructure/ + src/SomaCore.Domain/ that the poller
-# depends on. The API and the poller share Infrastructure + Domain, so most
+# under src/SomaCore.Infrastructure/ + src/SomaCore.Domain/ that the jobs
+# depend on. The API and the jobs share Infrastructure + Domain, so most
 # substantive changes need BOTH this script and deploy-app.ps1 run.
 #
 # Container Apps Jobs caches the image at the job-resource level (not
@@ -18,7 +20,7 @@
 param(
     [string]$ResourceGroup  = 'somacore-dev-rg',
     [string]$Registry       = 'somacoredevacr',
-    [string]$JobName        = 'somacore-poller',
+    [string[]]$JobNames     = @('somacore-poller', 'somacore-refresh-sweeper'),
     [string]$ImageName      = 'somacore-jobs',
     [string]$DockerfilePath = 'src/SomaCore.IngestionJobs/Dockerfile',
     [string]$ContextPath    = '.',
@@ -55,18 +57,20 @@ if ($allTags -notcontains $Tag) {
 
 $image = "$Registry.azurecr.io/$ImageName`:$Tag"
 
-Write-Host "`n=== Updating Container Apps Job $JobName -> $image ===" -ForegroundColor Cyan
-az containerapp job update `
-    --resource-group $ResourceGroup `
-    --name           $JobName `
-    --image          $image `
-    --query "{name:name, image:properties.template.containers[0].image}" `
-    -o table
-if ($LASTEXITCODE -ne 0) {
-    throw "az containerapp job update failed (exit code $LASTEXITCODE)."
+foreach ($jobName in $JobNames) {
+    Write-Host "`n=== Updating Container Apps Job $jobName -> $image ===" -ForegroundColor Cyan
+    az containerapp job update `
+        --resource-group $ResourceGroup `
+        --name           $jobName `
+        --image          $image `
+        --query "{name:name, image:properties.template.containers[0].image}" `
+        -o table
+    if ($LASTEXITCODE -ne 0) {
+        throw "az containerapp job update failed for $jobName (exit code $LASTEXITCODE)."
+    }
 }
 
-Write-Host "`nDeployed $image" -ForegroundColor Green
-Write-Host "Next scheduled execution will use this image." -ForegroundColor Green
+Write-Host "`nDeployed $image to: $($JobNames -join ', ')" -ForegroundColor Green
+Write-Host "Next scheduled execution of each job will use this image." -ForegroundColor Green
 Write-Host "To trigger an immediate test run:" -ForegroundColor DarkGray
-Write-Host "  az containerapp job start -g $ResourceGroup -n $JobName" -ForegroundColor DarkGray
+Write-Host "  az containerapp job start -g $ResourceGroup -n $($JobNames[0])" -ForegroundColor DarkGray
