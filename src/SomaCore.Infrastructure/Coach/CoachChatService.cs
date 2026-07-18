@@ -138,7 +138,7 @@ public sealed class CoachChatService : ICoachChatService
         if (userTurns >= _options.MaxUserTurnsPerThread)
         {
             return Result<CoachMessage>.Failure(
-                "That's it for this conversation — tomorrow's card picks this up.");
+                "That's it for this conversation — start a new one from your coach page anytime.");
         }
 
         var utcDayStart = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero);

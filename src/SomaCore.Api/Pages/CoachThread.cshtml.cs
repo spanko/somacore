@@ -25,6 +25,7 @@ public sealed class CoachThreadModel(
 
     public bool ChatEnabled => _options.Enabled;
     public int MaxTurnChars => _options.MaxTurnChars;
+    public int MaxUserTurns => _options.MaxUserTurnsPerThread;
 
     public Guid ThreadId { get; private set; }
     public string SubjectType { get; private set; } = "general";

@@ -196,7 +196,10 @@ public class CoachTests : IAsyncLifetime
 
         var third = await chat.SendAsync(_userId, thread.Value.Id, "three", CancellationToken.None);
         third.IsSuccess.Should().BeFalse();
-        third.Error.Should().Contain("tomorrow");
+        // The remedy is a NEW thread, not waiting — the per-thread cap never
+        // resets, and the copy must say so (Tai hit the old "tomorrow"
+        // wording and read it as a daily lockout).
+        third.Error.Should().Contain("start a new one");
     }
 
     [Fact]
